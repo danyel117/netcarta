@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { EncartaShell } from "@/components/shell/encarta-shell";
 
@@ -31,6 +31,24 @@ const hubItems = [
 
 export function HomeScreen() {
   const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    if (!showSplash) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowSplash(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showSplash]);
 
   return (
     <>

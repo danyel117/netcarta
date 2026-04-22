@@ -24,6 +24,14 @@ export const upsertArticle = mutation({
         title: v.string(),
       }),
     ),
+    articleLinks: v.optional(
+      v.array(
+        v.object({
+          slug: v.string(),
+          title: v.string(),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -32,8 +40,14 @@ export const upsertArticle = mutation({
       .unique();
 
     const payload = {
-      ...args,
+      slug: args.slug,
+      title: args.title,
+      summary: args.summary,
+      seeAlso: args.seeAlso,
       fetchedAt: Date.now(),
+      ...(args.thumbnail ? { thumbnail: args.thumbnail } : {}),
+      ...(args.image ? { image: args.image } : {}),
+      ...(args.articleLinks ? { articleLinks: args.articleLinks } : {}),
     };
 
     if (existing) {

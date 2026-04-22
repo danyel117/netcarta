@@ -10,6 +10,7 @@ export type ArticleRecord = {
   thumbnail?: string;
   image?: string;
   seeAlso: ArticlePreview[];
+  articleLinks?: ArticlePreview[];
   fetchedAt: number;
 };
 
@@ -34,4 +35,5 @@ export type FullArticlePayload = {
   sections: FullArticleSection[];
   title: string;
   toc: FullArticleTocItem[];
+  articleLinks: ArticlePreview[];
 };

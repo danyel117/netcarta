@@ -15,7 +15,7 @@ const hubItems = [
   {
     title: "Race",
     description:
-      "Create a multiplayer room and race through See Also links in real time.",
+      "Create a multiplayer room and race through inline article links in real time.",
     href: "/race",
   },
   {

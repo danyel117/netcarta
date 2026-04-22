@@ -9,6 +9,7 @@
  */
 
 import type * as articles from "../articles.js";
+import type * as races from "../races.js";
 import type * as wikipedia from "../wikipedia.js";
 
 import type {
@@ -19,8 +20,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   articles: typeof articles;
+  races: typeof races;
   wikipedia: typeof wikipedia;
-}>;
+}>; 
 
 /**
  * A utility for referencing Convex functions in your app's public API.

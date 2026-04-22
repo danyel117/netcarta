@@ -113,6 +113,49 @@ export function RaceRoomScreen({ code }: { code: string }) {
     return roomView.self;
   }, [roomView, selectedParticipantId]);
 
+  const isSpectator = roomView?.self?.role === "spectator";
+
+  const getPlayerStatusMeta = (player: {
+    _id: string;
+    ready: boolean;
+    finishedAt?: number;
+  }) => {
+    const isWinner = roomView?.winner?._id === player._id;
+
+    if (isWinner) {
+      return {
+        label: "winner",
+        className: "bg-[#fff3b7] text-[#7c2d12]",
+      };
+    }
+
+    if (player.finishedAt) {
+      return {
+        label: "finished",
+        className: "bg-[#dcfce7] text-[#166534]",
+      };
+    }
+
+    if (room?.status === "racing") {
+      return {
+        label: "racing",
+        className: "bg-[#dbeafe] text-[#1d4ed8]",
+      };
+    }
+
+    if (player.ready) {
+      return {
+        label: "ready",
+        className: "bg-[#d8f3dc] text-[#166534]",
+      };
+    }
+
+    return {
+      label: "waiting",
+      className: "bg-[#eef2ff] text-[#475569]",
+    };
+  };
+
   const navigationLocked = useMemo(() => {
     if (!roomView?.self || roomView.self.role !== "player") {
       return true;
@@ -164,12 +207,36 @@ export function RaceRoomScreen({ code }: { code: string }) {
   const needsExplicitJoin = isHydrated && !roomView.self;
   const isHost = roomView.self?.playerToken === roomView.room.hostPlayerToken;
   const canEditSetup = isHost && roomView.room.status === "lobby";
+  const joinRole = roomView.room.status === "lobby" ? "player" : "spectator";
+
+  const submitJoin = () => {
+    if (!playerToken || !joinName.trim()) {
+      setError("Enter your name before joining the session.");
+      return;
+    }
+
+    setJoinState("joining");
+    setError(null);
+    setDisplayName(joinName.trim());
+
+    void joinRoom({
+      code: normalizedCode,
+      playerToken,
+      displayName: joinName.trim(),
+    })
+      .catch((cause) => {
+        setError(cause instanceof Error ? cause.message : "Could not join the room.");
+      })
+      .finally(() => {
+        setJoinState("idle");
+      });
+  };
 
   return (
     <EncartaShell
       title={`Race ${normalizedCode}`}
       subtitle={`${roomView.room.startTitle} to ${roomView.room.targetTitle}`}
-      statusLeft={roomView.self ? `${roomView.self.displayName} · ${roomView.self.role}` : "Joining room"}
+      statusLeft={roomView.self ? `${roomView.self.displayName} · ${roomView.self.role}` : "Not joined yet"}
       statusRight={statusRight}
       actions={
         <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -199,27 +266,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
                 className="space-y-3 px-2"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (!playerToken || !joinName.trim()) {
-                    setError("Enter your name before joining the session.");
-                    return;
-                  }
-
-                  setJoinState("joining");
-                  setError(null);
-
-                  setDisplayName(joinName.trim());
-
-                  void joinRoom({
-                    code: normalizedCode,
-                    playerToken,
-                    displayName: joinName.trim(),
-                  })
-                    .catch((cause) => {
-                      setError(cause instanceof Error ? cause.message : "Could not join the room.");
-                    })
-                    .finally(() => {
-                      setJoinState("idle");
-                    });
+                  submitJoin();
                 }}
               >
                 <input
@@ -237,7 +284,9 @@ export function RaceRoomScreen({ code }: { code: string }) {
                   {joinState === "joining" ? "Joining Session..." : "Join Session"}
                 </button>
                 <div className="text-xs text-[#475569]">
-                  Join before the countdown starts to enter as a player. Late arrivals watch as spectators.
+                  {joinRole === "player"
+                    ? "Join before the countdown starts to enter as a player."
+                    : "This session has already started. Join now to watch as a spectator."}
                 </div>
               </form>
             </section>
@@ -321,8 +370,10 @@ export function RaceRoomScreen({ code }: { code: string }) {
                 clickCount: number;
                 path: Array<unknown>;
                 ready: boolean;
+                finishedAt?: number;
               }) => {
                 const isWatching = roomView.self?.role === "spectator" && selectedParticipantId === player._id;
+                const playerStatus = getPlayerStatusMeta(player);
 
                 return (
                   <button
@@ -334,13 +385,15 @@ export function RaceRoomScreen({ code }: { code: string }) {
                       }
                     }}
                     className={`bevel w-full px-3 py-3 text-left ${isWatching ? "bg-[#fff3b7]" : "bg-white"}`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-bold">{player.displayName}</span>
-                      <span className="text-xs uppercase tracking-[0.2em] text-[#475569]">
-                        {roomView.winner?._id === player._id ? "winner" : player.ready ? "ready" : "waiting"}
-                      </span>
-                    </div>
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-bold">{player.displayName}</span>
+                        <span
+                          className={`rounded-sm px-2 py-1 text-xs uppercase tracking-[0.2em] ${playerStatus.className}`}
+                        >
+                          {playerStatus.label}
+                        </span>
+                      </div>
                     <div className="mt-2 text-sm text-[#334155]">{player.currentArticleTitle}</div>
                     <div className="mt-1 text-xs text-[#64748b]">
                       {player.clickCount} clicks · {player.path.length} articles visited
@@ -413,7 +466,131 @@ export function RaceRoomScreen({ code }: { code: string }) {
           </div>
         ) : null}
 
-        {viewedParticipant ? (
+        {needsExplicitJoin ? (
+          <div className="border-2 border-black bg-[rgba(255,255,255,0.88)] p-8">
+            <div className="mx-auto max-w-xl">
+              <div className="text-xs uppercase tracking-[0.4em] text-[#1d4b8f]">
+                Join Session
+              </div>
+              <h2 className="mt-3 font-body text-5xl text-[#111]">
+                {joinRole === "player" ? "Enter your name" : "Join as spectator"}
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-[#334155]">
+                {joinRole === "player" ? (
+                  <>
+                    Join room <b>{normalizedCode}</b> to race from <b>{roomView.room.startTitle}</b> to <b>{roomView.room.targetTitle}</b>.
+                  </>
+                ) : (
+                  <>
+                    This session has already started. Enter your name and join room <b>{normalizedCode}</b> as a spectator to track every player live.
+                  </>
+                )}
+              </p>
+
+              <form
+                className="mt-8 space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  submitJoin();
+                }}
+              >
+                <label className="block text-sm font-bold">
+                  Your Name
+                  <input
+                    type="text"
+                    value={joinName}
+                    onChange={(event) => setJoinName(event.target.value)}
+                    placeholder="Your name"
+                    className="bevel-inset mt-2 w-full bg-white px-3 py-3 text-base outline-none"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={joinState === "joining" || !joinName.trim()}
+                  className="bevel bg-panel px-5 py-3 font-bold disabled:text-[#6b7280]"
+                >
+                  {joinState === "joining"
+                    ? joinRole === "player"
+                      ? "Joining Session..."
+                      : "Joining As Spectator..."
+                    : joinRole === "player"
+                      ? "Join This Session"
+                      : "Join As Spectator"}
+                </button>
+              </form>
+            </div>
+          </div>
+        ) : isSpectator ? (
+          <div className="space-y-6">
+            <div className="border-2 border-black bg-[rgba(255,255,255,0.88)] p-6">
+              <div className="text-xs uppercase tracking-[0.35em] text-[#1d4b8f]">
+                Spectator Dashboard
+              </div>
+              <h2 className="mt-3 font-body text-5xl text-[#111]">Live Room Status</h2>
+              <p className="mt-4 text-lg leading-8 text-[#334155]">
+                Track where every player is, how many clicks they&apos;ve used, and who reaches <b>{roomView.room.targetTitle}</b> first.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {roomView.players.map((player: {
+                _id: string;
+                displayName: string;
+                currentArticleTitle: string;
+                clickCount: number;
+                path: Array<unknown>;
+                ready: boolean;
+                finishedAt?: number;
+              }) => {
+                const playerStatus = getPlayerStatusMeta(player);
+
+                return (
+                  <div key={player._id} className="border-2 border-black bg-[rgba(255,255,255,0.9)] p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.25em] text-[#64748b]">
+                          Player
+                        </div>
+                        <div className="mt-1 text-2xl font-bold text-[#111]">{player.displayName}</div>
+                      </div>
+                      <span
+                        className={`rounded-sm px-2 py-1 text-xs uppercase tracking-[0.2em] ${playerStatus.className}`}
+                      >
+                        {playerStatus.label}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 space-y-4">
+                      <div className="bevel-inset bg-white px-3 py-3">
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
+                          Current Article
+                        </div>
+                        <div className="mt-1 text-lg font-bold text-[#1f2937]">
+                          {player.currentArticleTitle}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="bevel-inset bg-white px-3 py-3">
+                          <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
+                            Clicks
+                          </div>
+                          <div className="mt-1 text-2xl font-bold text-[#111]">{player.clickCount}</div>
+                        </div>
+                        <div className="bevel-inset bg-white px-3 py-3">
+                          <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
+                            Articles Visited
+                          </div>
+                          <div className="mt-1 text-2xl font-bold text-[#111]">{player.path.length}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : viewedParticipant ? (
           <RaceArticleViewer
             slug={viewedParticipant.currentArticleSlug}
             targetTitle={roomView.room.targetTitle}

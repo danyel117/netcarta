@@ -5,13 +5,6 @@
   "account_id": "03ae7b07c56b9f9eab31188b3cb8796a",
   "compatibility_date": "2024-12-30",
   "workers_dev": false,
-  "routes": [
-    {
-      "pattern": "netcarta.danielsaldarriaga.com",
-      "zone_name": "danielsaldarriaga.com",
-      "custom_domain": true
-    }
-  ],
   "compatibility_flags": [
     "nodejs_compat",
     "global_fetch_strictly_public"

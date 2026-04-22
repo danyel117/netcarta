@@ -147,6 +147,22 @@ type ArticlePayload = {
   seeAlso: Array<{ slug: string; title: string }>;
 };
 
+function withOptionalImages<T extends {
+  slug: string;
+  title: string;
+  summary: string;
+  seeAlso: Array<{ slug: string; title: string }>;
+}>(article: T & { thumbnail?: string; image?: string }): ArticlePayload {
+  return {
+    slug: article.slug,
+    title: article.title,
+    summary: article.summary,
+    seeAlso: article.seeAlso,
+    ...(article.thumbnail ? { thumbnail: article.thumbnail } : {}),
+    ...(article.image ? { image: article.image } : {}),
+  };
+}
+
 export const fetchAndCacheArticle = action({
   args: { slug: v.string() },
   handler: async (ctx, args): Promise<ArticlePayload> => {
@@ -164,20 +180,13 @@ export const fetchAndCacheArticle = action({
     });
 
     if (existing && Date.now() - existing.fetchedAt < 1000 * 60 * 60 * 6) {
-      return {
-        slug: existing.slug,
-        title: existing.title,
-        summary: existing.summary,
-        thumbnail: existing.thumbnail,
-        image: existing.image,
-        seeAlso: existing.seeAlso,
-      };
+      return withOptionalImages(existing);
     }
 
     const canonicalTitle = await resolveCanonicalTitle(args.slug);
     const page = await fetchWikipediaArticle(canonicalTitle);
 
-    const article: ArticlePayload = {
+    const article = withOptionalImages({
       slug: args.slug,
       title: page.title,
       summary: page.extract,
@@ -190,7 +199,7 @@ export const fetchAndCacheArticle = action({
           slug: toArticleSlug(link.title),
           title: link.title,
         })),
-    };
+    });
 
     await ctx.runMutation(api.articles.upsertArticle, article);
     return article;

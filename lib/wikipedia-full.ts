@@ -1,4 +1,4 @@
-import "server-only";
+import type { ArticlePreview } from "./types";
 
 const WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php";
 const USER_AGENT = "Netcarta/0.1 (Hackathon Project)";
@@ -34,6 +34,7 @@ export type FullArticlePayload = {
   sections: FullArticleSection[];
   title: string;
   toc: FullArticleTocItem[];
+  articleLinks: ArticlePreview[];
 };
 
 function toSearchQuery(slug: string) {
@@ -140,7 +141,13 @@ function normalizeHref(href: string) {
   return href;
 }
 
-function rewriteAnchorTag(match: string, beforeHref: string, href: string, afterHref: string) {
+function rewriteAnchorTag(
+  _match: string,
+  beforeHref: string,
+  href: string,
+  afterHref: string,
+  articleLinks: Map<string, string>,
+) {
   const normalizedHref = normalizeHref(href);
 
   if (normalizedHref.startsWith("#")) {
@@ -157,10 +164,13 @@ function rewriteAnchorTag(match: string, beforeHref: string, href: string, after
       return `<a${beforeHref}href="https://en.wikipedia.org${normalizedHref}"${afterHref} target="_blank" rel="noreferrer">`;
     }
 
-    const localHref = `/articles/${encodeURIComponent(decodedPagePath.replaceAll(" ", "_"))}${hash ? `#${hash}` : ""}`;
+    const articleSlug = decodedPagePath.replaceAll(" ", "_");
+    const localHref = `/articles/${encodeURIComponent(articleSlug)}${hash ? `#${hash}` : ""}`;
     const label = escapeAttribute(targetTitle);
 
-    return `<a${beforeHref}href="${localHref}"${afterHref} data-netcarta-link="article" data-netcarta-target="${label}">`;
+    articleLinks.set(articleSlug, targetTitle);
+
+    return `<a${beforeHref}href="${localHref}"${afterHref} data-netcarta-link="article" data-netcarta-target="${label}" data-netcarta-slug="${escapeAttribute(articleSlug)}">`;
   }
 
   if (normalizedHref.startsWith("/")) {
@@ -174,7 +184,7 @@ function rewriteAnchorTag(match: string, beforeHref: string, href: string, after
   return `<a${beforeHref}href="${normalizedHref}"${afterHref}>`;
 }
 
-function normalizeSectionHtml(html: string) {
+function normalizeSectionHtml(html: string, articleLinks: Map<string, string>) {
   let normalized = html;
 
   normalized = normalized.replace(/<!--([\s\S]*?)-->/g, "");
@@ -193,7 +203,9 @@ function normalizeSectionHtml(html: string) {
   normalized = normalized.replace(/<p>\s*Cite error:[\s\S]*?<\/p>/gi, "");
   normalized = normalized.replace(/="\/\//g, '="https://');
   normalized = normalized.replace(/,\s*\/\//g, ", https://");
-  normalized = normalized.replace(/<a\b([^>]*?)href="([^"]+)"([^>]*)>/gi, rewriteAnchorTag);
+  normalized = normalized.replace(/<a\b([^>]*?)href="([^"]+)"([^>]*)>/gi, (match, beforeHref, href, afterHref) =>
+    rewriteAnchorTag(match, beforeHref, href, afterHref, articleLinks),
+  );
 
   return normalized.trim();
 }
@@ -211,7 +223,11 @@ function shouldIncludeSection(section: FullArticleTocItem) {
   ].includes(normalizedTitle);
 }
 
-async function fetchSectionHtml(title: string, sectionIndex: string) {
+async function fetchSectionHtml(
+  title: string,
+  sectionIndex: string,
+  articleLinks: Map<string, string>,
+) {
   const response = await fetchWikipediaJson<{
     parse?: {
       text?: string;
@@ -225,7 +241,7 @@ async function fetchSectionHtml(title: string, sectionIndex: string) {
     }),
   );
 
-  return normalizeSectionHtml(response.parse?.text ?? "");
+  return normalizeSectionHtml(response.parse?.text ?? "", articleLinks);
 }
 
 export async function fetchFullArticlePayload(
@@ -234,6 +250,7 @@ export async function fetchFullArticlePayload(
 ): Promise<FullArticlePayload> {
   const includeSections = options?.includeSections ?? true;
   const title = await resolveCanonicalTitle(slug);
+  const articleLinks = new Map<string, string>();
   const tocResponse = await fetchWikipediaJson<{
     parse?: {
       tocdata?: {
@@ -258,14 +275,14 @@ export async function fetchFullArticlePayload(
     }))
     .filter(shouldIncludeSection);
 
-  const leadHtml = await fetchSectionHtml(title, "0");
+  const leadHtml = await fetchSectionHtml(title, "0", articleLinks);
   const topLevelSections = toc.filter((section) => section.level === 1);
 
   const sections = includeSections
     ? await Promise.all(
         topLevelSections.map(async (section) => ({
           anchor: section.anchor,
-          html: await fetchSectionHtml(title, section.index),
+          html: await fetchSectionHtml(title, section.index, articleLinks),
           index: section.index,
           title: section.title,
         })),
@@ -278,5 +295,9 @@ export async function fetchFullArticlePayload(
     sections,
     title,
     toc,
+    articleLinks: Array.from(articleLinks.entries()).map(([linkSlug, linkTitle]) => ({
+      slug: linkSlug,
+      title: linkTitle,
+    })),
   };
 }

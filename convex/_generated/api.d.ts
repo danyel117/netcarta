@@ -8,10 +8,7 @@
  * @module
  */
 
-import type * as articles from "../articles.js";
-import type * as leaderboard from "../leaderboard.js";
-import type * as rooms from "../rooms.js";
-import type * as wikipedia from "../wikipedia.js";
+import type * as messages from "../messages.js";
 
 import type {
   ApiFromModules,
@@ -20,10 +17,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  articles: typeof articles;
-  leaderboard: typeof leaderboard;
-  rooms: typeof rooms;
-  wikipedia: typeof wikipedia;
+  messages: typeof messages;
 }>;
 
 /**

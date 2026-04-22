@@ -1,22 +1,10 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "upload.wikimedia.org",
-      },
-      {
-        protocol: "https",
-        hostname: "wikimedia.org",
-      },
-      {
-        protocol: "https",
-        hostname: "*.wikimedia.org",
-      },
-    ],
-  },
-};
+const nextConfig: NextConfig = {};
+
+if (process.env.NODE_ENV === "development") {
+  initOpenNextCloudflareForDev();
+}
 
 export default nextConfig;

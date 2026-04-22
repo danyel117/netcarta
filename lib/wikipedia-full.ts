@@ -57,14 +57,23 @@ async function fetchWikipediaJson<T>(params: URLSearchParams): Promise<T> {
   params.set("format", "json");
   params.set("formatversion", "2");
 
-  const response = await fetch(`${WIKIPEDIA_API_URL}?${params.toString()}`, {
+  const requestInit: RequestInit & {
+    next?: {
+      revalidate: number;
+    };
+  } = {
     headers: {
       "User-Agent": USER_AGENT,
     },
     next: {
       revalidate: REVALIDATE_SECONDS,
     },
-  });
+  };
+
+  const response = await fetch(
+    `${WIKIPEDIA_API_URL}?${params.toString()}`,
+    requestInit,
+  );
 
   if (!response.ok) {
     throw new Error(`Wikipedia request failed with ${response.status}`);

@@ -22,7 +22,7 @@ declare const fullApi: ApiFromModules<{
   articles: typeof articles;
   races: typeof races;
   wikipedia: typeof wikipedia;
-}>; 
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.

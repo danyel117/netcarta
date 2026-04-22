@@ -98,9 +98,19 @@ export function RecommendArticleDialog() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="block py-1 text-left hover:underline"
+        className="bevel mt-2 flex w-full items-center gap-3 bg-[linear-gradient(180deg,#fffbe8_0%,#f1e3a7_100%)] px-3 py-2 text-left text-black transition hover:bg-[linear-gradient(180deg,#fffdf1_0%,#f5e8ba_100%)] active:translate-y-px"
       >
-        Recommend me an article
+        <span className="bevel-inset flex h-8 w-8 shrink-0 items-center justify-center bg-[#0d3f83] text-[11px] font-bold uppercase tracking-[0.14em] text-[#fff6cc]">
+          AI
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[15px] font-bold leading-5">
+            Recommend me an article
+          </span>
+          <span className="block text-[10px] uppercase tracking-[0.24em] text-[#6b4f16]">
+            Research Assistant
+          </span>
+        </span>
       </button>
 
       {isOpen ? (

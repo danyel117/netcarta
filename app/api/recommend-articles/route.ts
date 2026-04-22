@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import type { ArticlePreview } from "@/lib/types";
 import { resolveArticlePreview, searchWikipedia } from "@/lib/wikipedia";
 
-const DEFAULT_MODEL = "@cf/moonshotai/kimi-k2.5";
+const DEFAULT_MODEL = "@cf/moonshotai/kimi-k2.6";
 const MAX_RECOMMENDATIONS = 5;
+const MAX_AI_ATTEMPTS = 3;
 
 type ChatCompletionResponse = {
   choices?: Array<{
@@ -15,6 +16,7 @@ type ChatCompletionResponse = {
             type?: string;
             text?: string;
           }>;
+      reasoning_content?: string;
     };
   }>;
 };
@@ -63,6 +65,36 @@ function parseSuggestedTitles(raw: string) {
     .filter(Boolean);
 }
 
+function parseReasoningTitles(raw: string) {
+  const titles: string[] = [];
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    const match = trimmed.match(/^([-*•]|\d+[.)])\s+(.+)$/);
+
+    if (!match) {
+      continue;
+    }
+
+    const candidate = match[2]
+      .trim()
+      .replace(/^"(.*)"$/, "$1")
+      .replace(/\s+-\s+.*$/, "")
+      .replace(/\s{2,}.+$/, "");
+
+    if (
+      candidate &&
+      candidate.length <= 80 &&
+      !/[.!?]$/.test(candidate) &&
+      !candidate.toLowerCase().startsWith("the ")
+    ) {
+      titles.push(candidate);
+    }
+  }
+
+  return titles;
+}
+
 async function fetchAiSuggestions(query: string): Promise<string[]> {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
@@ -72,40 +104,53 @@ async function fetchAiSuggestions(query: string): Promise<string[]> {
     return [];
   }
 
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        "Content-Type": "application/json",
+  for (let attempt = 0; attempt < MAX_AI_ATTEMPTS; attempt += 1) {
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0,
+          max_completion_tokens: 600,
+          reasoning_effort: "low",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You recommend broad, foundational English Wikipedia article titles for curious general readers. Return exactly five likely-existing article titles, one per line, with no numbering, bullets, commentary, or markdown. Prefer canonical encyclopedia topics. Avoid niche topics, duplicates, list pages, timelines, and disambiguation pages. Do not include any reasoning in the visible answer.",
+            },
+            {
+              role: "user",
+              content: `Topic: ${query}`,
+            },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_completion_tokens: 180,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You recommend broad, foundational English Wikipedia article titles for curious general readers. Return exactly five likely-existing article titles, one per line, with no numbering, bullets, commentary, or markdown. Prefer canonical encyclopedia topics. Avoid niche topics, duplicates, list pages, timelines, and disambiguation pages.",
-          },
-          {
-            role: "user",
-            content: `Topic: ${query}`,
-          },
-        ],
-      }),
-    },
-  );
+    );
 
-  if (!response.ok) {
-    throw new Error(`Workers AI request failed with ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Workers AI request failed with ${response.status}`);
+    }
+
+    const payload = (await response.json()) as ChatCompletionResponse;
+    const message = payload.choices?.[0]?.message;
+    const content = extractChatContent(message?.content);
+    const suggestions = [
+      ...parseSuggestedTitles(content),
+      ...parseReasoningTitles(message?.reasoning_content ?? ""),
+    ].slice(0, MAX_RECOMMENDATIONS * 3);
+
+    if (suggestions.length > 0) {
+      return suggestions;
+    }
   }
 
-  const payload = (await response.json()) as ChatCompletionResponse;
-  const content = extractChatContent(payload.choices?.[0]?.message?.content);
-  return parseSuggestedTitles(content).slice(0, MAX_RECOMMENDATIONS);
+  throw new Error("Workers AI returned no visible suggestions");
 }
 
 async function buildRecommendations(query: string): Promise<ArticlePreview[]> {

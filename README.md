@@ -53,7 +53,7 @@ When deployment is triggered from Cloudflare Git integration, environment variab
 
 - Set plain env var: `NEXT_PUBLIC_CONVEX_URL`
 - Set plain env var: `CLOUDFLARE_ACCOUNT_ID`
-- Set plain env var: `CLOUDFLARE_AI_MODEL` (optional, defaults to `@cf/moonshotai/kimi-k2.5`)
+- Set plain env var: `CLOUDFLARE_AI_MODEL` (optional, defaults to `@cf/moonshotai/kimi-k2.6`)
 - Set secret: `CONVEX_API_KEY` (or your preferred deployment-only secret)
 - Set secret: `CLOUDFLARE_API_TOKEN`
 

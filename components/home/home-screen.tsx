@@ -79,7 +79,7 @@ export function HomeScreen() {
                 Welcome To
               </p>
               <h2 className="font-body text-6xl text-[#111] sm:text-7xl">
-                Netcarta 2001
+                Netcarta 2026
               </h2>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-[#202020]">
                 Browse live encyclopedia entries, spin up a room, and challenge

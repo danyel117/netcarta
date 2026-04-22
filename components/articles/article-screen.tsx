@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useAction, useQuery } from "convex/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import { EncartaShell } from "@/components/shell/encarta-shell";
@@ -12,6 +12,11 @@ export function ArticleScreen({ slug }: { slug: string }) {
   const cached = useQuery(api.articles.getBySlug, { slug });
   const fetchArticle = useAction(api.wikipedia.fetchAndCacheArticle);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const activeSlugRef = useRef(slug);
+
+  useEffect(() => {
+    activeSlugRef.current = slug;
+  }, [slug]);
 
   useEffect(() => {
     if (cached !== null || status === "loading" || status === "error") {
@@ -20,11 +25,33 @@ export function ArticleScreen({ slug }: { slug: string }) {
 
     setStatus("loading");
     void fetchArticle({ slug })
-      .then(() => setStatus("idle"))
-      .catch(() => setStatus("error"));
+      .then(() => {
+        if (activeSlugRef.current === slug) {
+          setStatus("idle");
+        }
+      })
+      .catch(() => {
+        if (activeSlugRef.current === slug) {
+          setStatus("error");
+        }
+      });
   }, [cached, fetchArticle, slug, status]);
 
-  const loading = cached === undefined || status === "loading";
+  const loadingMessage = useMemo(() => {
+    if (cached === undefined) {
+      return "Checking Encarta cache...";
+    }
+    if (status === "loading") {
+      return "Retrieving from Wikipedia...";
+    }
+    if (cached === null && status !== "error") {
+      return "Updating archive...";
+    }
+    return "Loading...";
+  }, [cached, status]);
+
+  const isLoading =
+    cached === undefined || (cached === null && status !== "error");
 
   const actions = useMemo(
     () => (
@@ -49,15 +76,15 @@ export function ArticleScreen({ slug }: { slug: string }) {
       subtitle="Wikipedia content, routed through Convex caching to keep the illusion intact."
       actions={actions}
     >
-      {loading ? (
+      {isLoading ? (
         <div className="flex flex-1 items-center justify-center p-10">
           <div className="bevel-inset bg-white px-6 py-5 text-lg">
-            Loading article from Convex cache...
+            {loadingMessage}
           </div>
         </div>
       ) : null}
 
-      {!loading && !cached ? (
+      {!isLoading && !cached ? (
         <div className="flex flex-1 items-center justify-center p-10">
           <div className="border-2 border-black bg-[#fff2d8] px-6 py-5 text-lg">
             {status === "error"

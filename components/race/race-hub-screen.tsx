@@ -25,12 +25,12 @@ export function RaceHubScreen() {
   const createRoom = useAction(api.races.createRoom);
   const recentResults = useQuery(api.races.listRecentResults, {});
   const [startArticle, setStartArticle] = useState<ArticlePreview | null>({
-    slug: "Lando_Norris",
-    title: "Lando Norris",
+    slug: "Cursor_(code_editor)",
+    title: "Cursor_(code_editor)",
   });
   const [targetArticle, setTargetArticle] = useState<ArticlePreview | null>({
-    slug: "Border_Collie",
-    title: "Border Collie",
+    slug: "SpaceX",
+    title: "SpaceX",
   });
   const [joinCode, setJoinCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);

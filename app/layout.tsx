@@ -5,8 +5,8 @@ import { AppConvexProvider } from "@/providers/convex-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Netcarta",
-  description: "Minimal Next.js + Convex starter.",
+  title: "Netcarta Online Edition",
+  description: "Encarta-inspired multiplayer Wikipedia racing built with Next.js and Convex.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,7 +1,7 @@
-import { StarterScreen } from "@/components/starter-screen";
+import { HomeScreen } from "@/components/home/home-screen";
 
 export const dynamic = "force-dynamic";
 
 export default function HomePage() {
-  return <StarterScreen />;
+  return <HomeScreen />;
 }

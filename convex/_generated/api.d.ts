@@ -8,7 +8,8 @@
  * @module
  */
 
-import type * as messages from "../messages.js";
+import type * as articles from "../articles.js";
+import type * as wikipedia from "../wikipedia.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +18,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  messages: typeof messages;
+  articles: typeof articles;
+  wikipedia: typeof wikipedia;
 }>;
 
 /**

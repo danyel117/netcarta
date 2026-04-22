@@ -8,4 +8,4 @@ node_modules
 .env.production.local
 .open-next
 .wrangler
-.dev.vars
+.dev.varstsconfig.tsbuildinfo

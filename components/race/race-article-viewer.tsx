@@ -50,6 +50,7 @@ export function RaceArticleViewer({
     setSummaryStatus("idle");
     setFullStatus("idle");
     setHoveredStatus(null);
+    window.scrollTo({ top: 0, behavior: "auto" });
   }, [slug]);
 
   useEffect(() => {

@@ -58,6 +58,7 @@ export function ArticleScreen({ slug }: { slug: string }) {
     setHoveredStatus(null);
     setIsReaderOpen(false);
     pendingAnchorRef.current = null;
+    window.scrollTo({ top: 0, behavior: "auto" });
   }, [slug]);
 
   useEffect(() => {

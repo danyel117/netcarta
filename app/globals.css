@@ -335,6 +335,118 @@ a {
   background-size: 100% 4px;
 }
 
+@keyframes winnerOverlayPulse {
+  0%,
+  100% {
+    opacity: 0.58;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes winnerPanelFloat {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+
+  50% {
+    transform: translateY(-8px) scale(1.01);
+  }
+}
+
+@keyframes winnerMarquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes winnerGlowSweep {
+  0% {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+
+  100% {
+    transform: translateX(180%) skewX(-18deg);
+  }
+}
+
+.winner-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at center, rgba(255, 234, 138, 0.38), transparent 45%),
+    linear-gradient(180deg, rgba(1, 6, 30, 0.48), rgba(0, 0, 0, 0.78));
+  animation: winnerOverlayPulse 1800ms ease-in-out infinite;
+}
+
+.winner-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(transparent 50%, rgba(255, 255, 255, 0.06) 50%);
+  background-size: 100% 4px;
+  opacity: 0.45;
+}
+
+.winner-panel {
+  position: relative;
+  width: min(820px, 100%);
+  overflow: hidden;
+  border: 3px solid #000;
+  box-shadow: 0 0 0 3px rgba(255, 243, 183, 0.28), 10px 10px 0 rgba(0, 0, 0, 0.45);
+  background:
+    linear-gradient(180deg, #fff8db, #dce9ff),
+    #fff;
+  animation: winnerPanelFloat 3200ms ease-in-out infinite;
+}
+
+.winner-panel::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: winnerGlowSweep 2200ms linear infinite;
+  pointer-events: none;
+}
+
+.winner-marquee {
+  overflow: hidden;
+  border-bottom: 2px solid #000;
+  background: linear-gradient(90deg, #061a69, #0082c8, #061a69);
+  color: #fff8d5;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.winner-marquee-track {
+  display: inline-flex;
+  min-width: max-content;
+  padding: 0.7rem 0;
+  animation: winnerMarquee 12s linear infinite;
+}
+
+.winner-marquee-track span {
+  padding-right: 2.5rem;
+}
+
 @media (max-width: 900px) {
   .reader-overlay {
     padding: 10px;

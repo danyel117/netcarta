@@ -457,13 +457,71 @@ export function RaceRoomScreen({ code }: { code: string }) {
         ) : null}
 
         {roomView.room.status === "finished" && roomView.winner ? (
-          <div className="mb-6 border-2 border-black bg-[#fff3b7] px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.3em] text-[#92400e]">Winner</div>
-            <div className="mt-2 font-body text-4xl text-[#111]">{roomView.winner.displayName}</div>
-            <div className="mt-2 text-sm text-[#334155]">
-              Reached {roomView.room.targetTitle} in {roomView.winner.clickCount} clicks.
+          <>
+            <div className="winner-overlay pointer-events-none">
+              <div className="winner-panel scanlines">
+                <div className="winner-marquee">
+                  <div className="winner-marquee-track">
+                    <span>Netcarta Champion</span>
+                    <span>Session Complete</span>
+                    <span>{roomView.winner.displayName} Wins</span>
+                    <span>Destination Reached</span>
+                    <span>Netcarta Champion</span>
+                    <span>Session Complete</span>
+                    <span>{roomView.winner.displayName} Wins</span>
+                    <span>Destination Reached</span>
+                  </div>
+                </div>
+
+                <div className="space-y-5 p-6 text-center md:p-8">
+                  <div className="text-xs uppercase tracking-[0.45em] text-[#1d4b8f]">
+                    Race Complete
+                  </div>
+                  <div className="font-body text-5xl leading-none text-[#111] md:text-7xl">
+                    {roomView.winner.displayName}
+                  </div>
+                  <div className="text-xl font-bold uppercase tracking-[0.28em] text-[#7c2d12] md:text-2xl">
+                    Wins The Room
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="bevel-inset bg-white px-4 py-4">
+                      <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
+                        Destination
+                      </div>
+                      <div className="mt-2 text-lg font-bold text-[#111]">
+                        {roomView.room.targetTitle}
+                      </div>
+                    </div>
+                    <div className="bevel-inset bg-white px-4 py-4">
+                      <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
+                        Clicks
+                      </div>
+                      <div className="mt-2 text-3xl font-bold text-[#111]">
+                        {roomView.winner.clickCount}
+                      </div>
+                    </div>
+                    <div className="bevel-inset bg-white px-4 py-4">
+                      <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
+                        Articles Visited
+                      </div>
+                      <div className="mt-2 text-3xl font-bold text-[#111]">
+                        {roomView.winner.path.length}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+
+            <div className="mb-6 border-2 border-black bg-[#fff3b7] px-5 py-4">
+              <div className="text-xs uppercase tracking-[0.3em] text-[#92400e]">Winner</div>
+              <div className="mt-2 font-body text-4xl text-[#111]">{roomView.winner.displayName}</div>
+              <div className="mt-2 text-sm text-[#334155]">
+                Reached {roomView.room.targetTitle} in {roomView.winner.clickCount} clicks.
+              </div>
+            </div>
+          </>
         ) : null}
 
         {needsExplicitJoin ? (

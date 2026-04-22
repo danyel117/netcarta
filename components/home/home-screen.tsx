@@ -152,12 +152,20 @@ export function HomeScreen() {
                 Judges join from phones, everyone starts together, and the first
                 player to reach the target article wins.
               </p>
-              <Link
-                href="/race"
-                className="bevel mt-5 inline-flex bg-panel px-4 py-2 font-bold text-black"
-              >
-                Launch Race Lobby
-              </Link>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link
+                  href="/race"
+                  className="bevel inline-flex bg-panel px-4 py-2 font-bold text-black"
+                >
+                  Launch Race Lobby
+                </Link>
+                <Link
+                  href="/race#join-existing-room"
+                  className="bevel inline-flex bg-[#fff8dc] px-4 py-2 font-bold text-black hover:bg-[#fff3b7]"
+                >
+                  Join Existing Session
+                </Link>
+              </div>
             </div>
 
             <div className="border-2 border-black bg-[rgba(255,255,255,0.72)] p-5">

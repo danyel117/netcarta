@@ -8,6 +8,15 @@ import { api } from "@/convex/_generated/api";
 import { EncartaShell } from "@/components/shell/encarta-shell";
 import { useRaceIdentity } from "@/components/race/use-race-identity";
 
+type RecentRaceResult = {
+  _id: string;
+  winnerName: string;
+  startTitle: string;
+  targetTitle: string;
+  timeMs: number;
+  clickCount: number;
+};
+
 export function RaceHubScreen() {
   const router = useRouter();
   const { playerToken, displayName, setDisplayName, isHydrated } = useRaceIdentity();
@@ -18,6 +27,7 @@ export function RaceHubScreen() {
   const [joinCode, setJoinCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const recentRaceResults = recentResults as RecentRaceResult[] | undefined;
 
   const canCreate = isHydrated && Boolean(playerToken) && displayName.trim();
 
@@ -107,7 +117,10 @@ export function RaceHubScreen() {
             {error ? <p className="mt-4 text-sm text-[#7c2d12]">{error}</p> : null}
           </div>
 
-          <div className="border-2 border-black bg-[rgba(255,248,220,0.86)] p-6">
+          <div
+            id="join-existing-room"
+            className="border-2 border-black bg-[rgba(255,248,220,0.86)] p-6"
+          >
             <div className="mb-4 bg-[#b0b0b0] px-2 py-1 text-2xl font-bold">Join Existing Room</div>
             <form
               className="flex flex-wrap items-end gap-3"
@@ -159,18 +172,11 @@ export function RaceHubScreen() {
               Recent Winners
             </div>
             <div className="mt-4 space-y-3 text-sm">
-              {recentResults === undefined ? <div>Loading scoreboard...</div> : null}
-              {recentResults?.length === 0 ? (
+              {recentRaceResults === undefined ? <div>Loading scoreboard...</div> : null}
+              {recentRaceResults?.length === 0 ? (
                 <div className="text-[#475569]">No completed races yet.</div>
               ) : null}
-              {recentResults?.map((result: {
-                _id: string;
-                winnerName: string;
-                startTitle: string;
-                targetTitle: string;
-                timeMs: number;
-                clickCount: number;
-              }) => (
+              {recentRaceResults?.map((result) => (
                 <div key={result._id} className="bevel-inset bg-white px-3 py-3">
                   <div className="font-bold">{result.winnerName}</div>
                   <div className="mt-1 text-[#334155]">

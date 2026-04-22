@@ -1,6 +1,15 @@
 # Netcarta
 
-Minimal Next.js + Convex scaffold for Netcarta, deployed on Cloudflare Workers via OpenNext.
+Next.js app deployed on Cloudflare Workers via OpenNext, with Convex as the backend.
+
+Built for the Frontier Tech Week Hackathon in Miami, April 2026.
+
+## Architecture
+
+- Frontend: Next.js on Cloudflare Workers through OpenNext.
+- Static assets: uploaded with the Worker and exposed through the `ASSETS` binding.
+- AI recommendations: `/api/recommend-articles` calls Cloudflare Workers AI.
+- Backend: Convex handles data, actions, queries, mutations, and realtime sync.
 
 ## Requirements
 
@@ -17,10 +26,10 @@ Minimal Next.js + Convex scaffold for Netcarta, deployed on Cloudflare Workers v
 bun install
 ```
 
-2. Copy env template and set values:
+2. Copy the env template and set values in `.env` or `.env.local`:
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
 3. Run the app:
@@ -33,7 +42,9 @@ bun run dev
 
 > `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are required for the article recommendation dialog when you want Workers AI enabled locally.
 
-## Cloudflare deployment
+## Deployments
+
+### Frontend
 
 Use OpenNext wrappers for Worker deploys:
 
@@ -47,9 +58,45 @@ To test locally as a Worker:
 bun run preview
 ```
 
+### Backend
+
+Deploy Convex separately:
+
+```bash
+CONVEX_DEPLOYMENT=little-deer-503 bunx convex deploy
+```
+
+## Cloudflare usage
+
+This repo uses Cloudflare for:
+
+- hosting the Next.js frontend as a Worker
+- serving built static assets through the Worker deploy
+- attaching the Worker to `netcarta.danielsaldarriaga.com`
+- calling Workers AI from the recommendation API route
+
+This repo does not use Cloudflare for the backend. Convex is the backend.
+
+## Manual frontend release workaround
+
+The current API token can upload a Worker version, but it cannot update Worker routes. When `bun run deploy` fails with an authentication error on `/workers/routes`, finish the release by promoting the uploaded Worker version manually:
+
+```bash
+bunx wrangler deployments status --env-file .env
+bunx wrangler versions deploy --env-file .env --version-id "<version-id>" --percentage 100 -y
+```
+
+## Cloudflare token permissions
+
+The deploy token needs at least:
+
+- `Workers Scripts: Edit`
+- `Workers Routes: Edit`
+- `Zone: Read`
+
 ## Git-connected Cloudflare deploy checklist
 
-When deployment is triggered from Cloudflare Git integration, environment variables are read from Cloudflare project settings, not local `.env.local` files.
+When deployment is triggered from Cloudflare Git integration, environment variables are read from Cloudflare project settings, not local `.env` or `.env.local` files.
 
 - Set plain env var: `NEXT_PUBLIC_CONVEX_URL`
 - Set plain env var: `CLOUDFLARE_ACCOUNT_ID`

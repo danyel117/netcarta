@@ -1,8 +1,9 @@
 import { v } from "convex/values";
 
+import type { ArticlePreview } from "../lib/types";
 import { fetchFullArticlePayload } from "../lib/wikipedia-full";
-import { fetchWikipediaArticle, resolveArticlePreview } from "../lib/wikipedia";
-import { Doc } from "./_generated/dataModel";
+import { fetchWikipediaArticle } from "../lib/wikipedia";
+import { Doc, Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import {
   action,
@@ -15,11 +16,28 @@ import {
 } from "./_generated/server";
 
 const COUNTDOWN_MS = 5_000;
+const LIVE_PRESENCE_STALE_MS = 15_000;
+const LIVE_SUGGESTION_WINDOW_MS = 10_000;
+const MAX_FOLLOWER_PRESENCES = 32;
+const MAX_RECENT_SUGGESTIONS = 16;
 const ROOM_CODE_LENGTH = 6;
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 type RaceRoom = Doc<"raceRooms">;
 type RaceParticipant = Doc<"raceParticipants">;
+type RaceParticipantPresence = Doc<"raceParticipantPresence">;
+
+function clampRatio(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(value, 1));
+}
+
+function isFreshPresence(presence: RaceParticipantPresence, now: number) {
+  return now - presence.updatedAt <= LIVE_PRESENCE_STALE_MS;
+}
 
 function generateRoomCode() {
   return Array.from({ length: ROOM_CODE_LENGTH }, () => {
@@ -58,6 +76,81 @@ async function listRoomParticipants(
     .take(64);
 
   return participants.sort((left, right) => left.joinedAt - right.joinedAt);
+}
+
+async function getPresenceByParticipantId(
+  ctx: QueryCtx | MutationCtx,
+  roomId: RaceRoom["_id"],
+  participantId: Id<"raceParticipants">,
+) {
+  return await ctx.db
+    .query("raceParticipantPresence")
+    .withIndex("by_roomId_and_participantId", (query) =>
+      query.eq("roomId", roomId).eq("participantId", participantId),
+    )
+    .unique();
+}
+
+async function getPresenceByPlayerToken(
+  ctx: QueryCtx | MutationCtx,
+  roomId: RaceRoom["_id"],
+  playerToken: string,
+) {
+  return await ctx.db
+    .query("raceParticipantPresence")
+    .withIndex("by_roomId_and_playerToken", (query) =>
+      query.eq("roomId", roomId).eq("playerToken", playerToken),
+    )
+    .unique();
+}
+
+async function upsertPresenceRecord(
+  ctx: MutationCtx,
+  room: RaceRoom,
+  participant: RaceParticipant,
+  values: {
+    currentArticleSlug: string;
+    followingParticipantId?: Id<"raceParticipants">;
+    cursorXRatio: number;
+    cursorYRatio: number;
+    scrollRatio: number;
+  },
+) {
+  const existing = await getPresenceByParticipantId(ctx, room._id, participant._id);
+  const payload = {
+    playerToken: participant.playerToken,
+    role: participant.role,
+    currentArticleSlug: values.currentArticleSlug,
+    followingParticipantId: values.followingParticipantId,
+    cursorXRatio: clampRatio(values.cursorXRatio),
+    cursorYRatio: clampRatio(values.cursorYRatio),
+    scrollRatio: clampRatio(values.scrollRatio),
+    updatedAt: Date.now(),
+  };
+
+  if (existing) {
+    await ctx.db.patch(existing._id, payload);
+    return;
+  }
+
+  await ctx.db.insert("raceParticipantPresence", {
+    roomId: room._id,
+    participantId: participant._id,
+    ...payload,
+  });
+}
+
+async function listFollowerPresences(
+  ctx: QueryCtx,
+  roomId: RaceRoom["_id"],
+  targetParticipantId: Id<"raceParticipants">,
+) {
+  return await ctx.db
+    .query("raceParticipantPresence")
+    .withIndex("by_roomId_and_followingParticipantId", (query) =>
+      query.eq("roomId", roomId).eq("followingParticipantId", targetParticipantId),
+    )
+    .take(MAX_FOLLOWER_PRESENCES);
 }
 
 async function maybeStartCountdown(ctx: MutationCtx, room: RaceRoom) {
@@ -100,16 +193,7 @@ async function cacheInlineLinks(slug: string) {
   };
 }
 
-async function resolveSetupQueries(startQuery: string, targetQuery: string) {
-  const [startPreview, targetPreview] = await Promise.all([
-    resolveArticlePreview(startQuery),
-    resolveArticlePreview(targetQuery),
-  ]);
-
-  if (!startPreview || !targetPreview) {
-    throw new Error("Choose two real Wikipedia articles before saving the room.");
-  }
-
+async function resolveSetupArticles(startPreview: ArticlePreview, targetPreview: ArticlePreview) {
   if (startPreview.slug === targetPreview.slug) {
     throw new Error("Start and destination articles need to be different.");
   }
@@ -167,6 +251,246 @@ export const getRoomView = query({
       winner,
       countdownMs: COUNTDOWN_MS,
     };
+  },
+});
+
+export const getFollowView = query({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    targetParticipantId: v.id("raceParticipants"),
+  },
+  handler: async (ctx, args) => {
+    const room = await getRoomByCode(ctx, args.code);
+    if (!room) {
+      return null;
+    }
+
+    const participants = await listRoomParticipants(ctx, room._id);
+    const self = participants.find((participant) => participant.playerToken === args.playerToken) ?? null;
+    if (!self) {
+      return null;
+    }
+
+    const targetParticipant = participants.find((participant) => participant._id === args.targetParticipantId) ?? null;
+    if (!targetParticipant || targetParticipant.role !== "player") {
+      return null;
+    }
+
+    if (self.role === "player" && self._id !== targetParticipant._id) {
+      return null;
+    }
+
+    const now = Date.now();
+    const selfPresence = await getPresenceByPlayerToken(ctx, room._id, self.playerToken);
+    const targetPresence = await getPresenceByParticipantId(ctx, room._id, targetParticipant._id);
+    const followerPresences = await listFollowerPresences(ctx, room._id, targetParticipant._id);
+    const participantById = new Map(participants.map((participant) => [participant._id, participant]));
+    const recentSuggestions = await ctx.db
+      .query("raceSuggestions")
+      .withIndex("by_roomId_and_toParticipantId_and_createdAt", (query) =>
+        query.eq("roomId", room._id).eq("toParticipantId", targetParticipant._id),
+      )
+      .order("desc")
+      .take(MAX_RECENT_SUGGESTIONS);
+
+    return {
+      viewer: self,
+      targetParticipant,
+      selfPresence:
+        selfPresence && isFreshPresence(selfPresence, now)
+          ? {
+              participantId: selfPresence.participantId,
+              currentArticleSlug: selfPresence.currentArticleSlug,
+              cursorXRatio: selfPresence.cursorXRatio,
+              cursorYRatio: selfPresence.cursorYRatio,
+              scrollRatio: selfPresence.scrollRatio,
+              updatedAt: selfPresence.updatedAt,
+            }
+          : null,
+      targetPresence:
+        targetPresence && isFreshPresence(targetPresence, now)
+          ? {
+              participantId: targetPresence.participantId,
+              displayName: targetParticipant.displayName,
+              currentArticleSlug: targetPresence.currentArticleSlug,
+              cursorXRatio: targetPresence.cursorXRatio,
+              cursorYRatio: targetPresence.cursorYRatio,
+              scrollRatio: targetPresence.scrollRatio,
+              updatedAt: targetPresence.updatedAt,
+            }
+          : null,
+      followerPresences: followerPresences
+        .filter(
+          (presence) =>
+            presence.role === "spectator" &&
+            isFreshPresence(presence, now) &&
+            presence.currentArticleSlug === targetParticipant.currentArticleSlug,
+        )
+        .flatMap((presence) => {
+          const follower = participantById.get(presence.participantId);
+
+          return follower
+            ? [{
+                participantId: presence.participantId,
+                playerToken: presence.playerToken,
+                displayName: follower.displayName,
+                currentArticleSlug: presence.currentArticleSlug,
+                cursorXRatio: presence.cursorXRatio,
+                cursorYRatio: presence.cursorYRatio,
+                scrollRatio: presence.scrollRatio,
+                updatedAt: presence.updatedAt,
+              }]
+            : [];
+        }),
+      recentSuggestions: recentSuggestions
+        .filter(
+          (suggestion) =>
+            now - suggestion.createdAt <= LIVE_SUGGESTION_WINDOW_MS &&
+            suggestion.sourceArticleSlug === targetParticipant.currentArticleSlug,
+        )
+        .map((suggestion) => ({
+          _id: suggestion._id,
+          fromParticipantId: suggestion.fromParticipantId,
+          fromDisplayName: suggestion.fromDisplayName,
+          sourceArticleSlug: suggestion.sourceArticleSlug,
+          articleSlug: suggestion.articleSlug,
+          articleTitle: suggestion.articleTitle,
+          createdAt: suggestion.createdAt,
+        })),
+    };
+  },
+});
+
+export const upsertPresence = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    currentArticleSlug: v.string(),
+    followingParticipantId: v.optional(v.id("raceParticipants")),
+    cursorXRatio: v.number(),
+    cursorYRatio: v.number(),
+    scrollRatio: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const room = await getRoomByCode(ctx, args.code);
+    if (!room) {
+      throw new Error("That room does not exist.");
+    }
+
+    const participant = await getParticipant(ctx, room._id, args.playerToken);
+    if (!participant) {
+      throw new Error("You need to join the room before syncing live state.");
+    }
+
+    let followingParticipantId: Id<"raceParticipants"> | undefined;
+    if (participant.role === "spectator" && args.followingParticipantId) {
+      const targetParticipant = await ctx.db.get(args.followingParticipantId);
+      if (!targetParticipant || targetParticipant.roomId !== room._id || targetParticipant.role !== "player") {
+        throw new Error("Spectators can only follow players in the same room.");
+      }
+
+      followingParticipantId = targetParticipant._id;
+    }
+
+    await upsertPresenceRecord(ctx, room, participant, {
+      currentArticleSlug: args.currentArticleSlug,
+      followingParticipantId,
+      cursorXRatio: args.cursorXRatio,
+      cursorYRatio: args.cursorYRatio,
+      scrollRatio: args.scrollRatio,
+    });
+
+    return { ok: true };
+  },
+});
+
+export const setFollowTarget = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    followingParticipantId: v.id("raceParticipants"),
+  },
+  handler: async (ctx, args) => {
+    const room = await getRoomByCode(ctx, args.code);
+    if (!room) {
+      throw new Error("That room does not exist.");
+    }
+
+    const participant = await getParticipant(ctx, room._id, args.playerToken);
+    if (!participant || participant.role !== "spectator") {
+      throw new Error("Only spectators can follow another player.");
+    }
+
+    const targetParticipant = await ctx.db.get(args.followingParticipantId);
+    if (!targetParticipant || targetParticipant.roomId !== room._id || targetParticipant.role !== "player") {
+      throw new Error("Choose a player from this room to follow.");
+    }
+
+    const existingPresence = await getPresenceByParticipantId(ctx, room._id, participant._id);
+
+    await upsertPresenceRecord(ctx, room, participant, {
+      currentArticleSlug: targetParticipant.currentArticleSlug,
+      followingParticipantId: targetParticipant._id,
+      cursorXRatio: existingPresence?.cursorXRatio ?? 0.5,
+      cursorYRatio: existingPresence?.cursorYRatio ?? 0.1,
+      scrollRatio: existingPresence?.scrollRatio ?? 0,
+    });
+
+    return { ok: true };
+  },
+});
+
+export const sendSuggestion = mutation({
+  args: {
+    code: v.string(),
+    playerToken: v.string(),
+    toParticipantId: v.id("raceParticipants"),
+    articleSlug: v.string(),
+    articleTitle: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const room = await getRoomByCode(ctx, args.code);
+    if (!room) {
+      throw new Error("That room does not exist.");
+    }
+
+    const participant = await getParticipant(ctx, room._id, args.playerToken);
+    if (!participant || participant.role !== "spectator") {
+      throw new Error("Only spectators can send link suggestions.");
+    }
+
+    const targetParticipant = await ctx.db.get(args.toParticipantId);
+    if (!targetParticipant || targetParticipant.roomId !== room._id || targetParticipant.role !== "player") {
+      throw new Error("Suggestions can only target players in the same room.");
+    }
+
+    const sourceArticle = await ctx.db
+      .query("articles")
+      .withIndex("by_slug", (query) => query.eq("slug", targetParticipant.currentArticleSlug))
+      .unique();
+
+    if (!sourceArticle?.articleLinks) {
+      throw new Error("That article is not ready for suggestion sync yet.");
+    }
+
+    const suggestedLink = sourceArticle.articleLinks.find((link) => link.slug === args.articleSlug);
+    if (!suggestedLink) {
+      throw new Error("That link is not available from the player's current article.");
+    }
+
+    await ctx.db.insert("raceSuggestions", {
+      roomId: room._id,
+      fromParticipantId: participant._id,
+      fromDisplayName: participant.displayName,
+      toParticipantId: targetParticipant._id,
+      sourceArticleSlug: targetParticipant.currentArticleSlug,
+      articleSlug: suggestedLink.slug,
+      articleTitle: suggestedLink.title,
+      createdAt: Date.now(),
+    });
+
+    return { ok: true };
   },
 });
 
@@ -233,12 +557,18 @@ export const createRoom = action({
   args: {
     playerToken: v.string(),
     displayName: v.string(),
-    startQuery: v.string(),
-    targetQuery: v.string(),
+    startArticle: v.object({
+      slug: v.string(),
+      title: v.string(),
+    }),
+    targetArticle: v.object({
+      slug: v.string(),
+      title: v.string(),
+    }),
   },
   handler: async (ctx, args): Promise<{ code: string }> => {
     const { startPreview, startCache, targetPreview, targetCache } =
-      await resolveSetupQueries(args.startQuery, args.targetQuery);
+      await resolveSetupArticles(args.startArticle, args.targetArticle);
 
     await Promise.all([
       ctx.runMutation(api.articles.upsertArticle, startCache),
@@ -313,12 +643,18 @@ export const updateRoomSetup = action({
   args: {
     code: v.string(),
     playerToken: v.string(),
-    startQuery: v.string(),
-    targetQuery: v.string(),
+    startArticle: v.object({
+      slug: v.string(),
+      title: v.string(),
+    }),
+    targetArticle: v.object({
+      slug: v.string(),
+      title: v.string(),
+    }),
   },
   handler: async (ctx, args): Promise<{ ok: boolean }> => {
     const { startPreview, startCache, targetPreview, targetCache } =
-      await resolveSetupQueries(args.startQuery, args.targetQuery);
+      await resolveSetupArticles(args.startArticle, args.targetArticle);
 
     await Promise.all([
       ctx.runMutation(api.articles.upsertArticle, startCache),

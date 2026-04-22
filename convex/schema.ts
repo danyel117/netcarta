@@ -63,6 +63,31 @@ export default defineSchema({
   })
     .index("by_roomId", ["roomId"])
     .index("by_roomId_and_playerToken", ["roomId", "playerToken"]),
+  raceParticipantPresence: defineTable({
+    roomId: v.id("raceRooms"),
+    participantId: v.id("raceParticipants"),
+    playerToken: v.string(),
+    role: v.union(v.literal("player"), v.literal("spectator")),
+    currentArticleSlug: v.string(),
+    followingParticipantId: v.optional(v.id("raceParticipants")),
+    cursorXRatio: v.number(),
+    cursorYRatio: v.number(),
+    scrollRatio: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_roomId_and_participantId", ["roomId", "participantId"])
+    .index("by_roomId_and_playerToken", ["roomId", "playerToken"])
+    .index("by_roomId_and_followingParticipantId", ["roomId", "followingParticipantId"]),
+  raceSuggestions: defineTable({
+    roomId: v.id("raceRooms"),
+    fromParticipantId: v.id("raceParticipants"),
+    fromDisplayName: v.string(),
+    toParticipantId: v.id("raceParticipants"),
+    sourceArticleSlug: v.string(),
+    articleSlug: v.string(),
+    articleTitle: v.string(),
+    createdAt: v.number(),
+  }).index("by_roomId_and_toParticipantId_and_createdAt", ["roomId", "toParticipantId", "createdAt"]),
   raceResults: defineTable({
     roomId: v.id("raceRooms"),
     winnerName: v.string(),

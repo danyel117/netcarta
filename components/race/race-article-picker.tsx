@@ -19,7 +19,7 @@ export function RaceArticlePicker({
 }) {
   const searchAction = useAction(api.wikipedia.searchWikipedia);
   const rootRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const timeoutRef = useRef<number | null>(null);
   const [query, setQuery] = useState(selectedArticle?.title ?? "");
   const [suggestions, setSuggestions] = useState<ArticlePreview[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -68,8 +68,11 @@ export function RaceArticlePicker({
       onSelect(null);
     }
 
-    clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
       void runSearch(value);
     }, 250);
   };

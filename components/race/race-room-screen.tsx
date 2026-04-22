@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { RaceArticlePicker } from "@/components/race/race-article-picker";
 import { RaceArticleViewer } from "@/components/race/race-article-viewer";
 import { useRaceIdentity } from "@/components/race/use-race-identity";
@@ -26,17 +27,19 @@ export function RaceRoomScreen({ code }: { code: string }) {
   const joinRoom = useMutation(api.races.joinRoom);
   const setReady = useMutation(api.races.setReady);
   const syncRaceStage = useMutation(api.races.syncRaceStage);
+  const setFollowTarget = useMutation(api.races.setFollowTarget);
   const advanceParticipant = useAction(api.races.advanceParticipant);
   const updateRoomSetup = useAction(api.races.updateRoomSetup);
   const [joinState, setJoinState] = useState<"idle" | "joining">("idle");
   const [setupState, setSetupState] = useState<"idle" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
+  const [selectedParticipantId, setSelectedParticipantId] = useState<Id<"raceParticipants"> | null>(null);
   const [isWinnerOverlayDismissed, setIsWinnerOverlayDismissed] = useState(false);
   const [joinName, setJoinName] = useState(displayName);
   const [startArticle, setStartArticle] = useState<ArticlePreview | null>(null);
   const [targetArticle, setTargetArticle] = useState<ArticlePreview | null>(null);
+  const syncedFollowTargetRef = useRef<Id<"raceParticipants"> | null>(null);
   const room = roomView?.room;
   const roomStartSlug = room?.startSlug;
   const roomStartTitle = room?.startTitle;
@@ -54,11 +57,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
   }, [roomView?.room.status, roomView?.winner?._id]);
 
   useEffect(() => {
-    if (!roomStartTitle || !roomTargetTitle) {
-      return;
-    }
-
-    if (!roomStartSlug || !roomTargetSlug || !roomStartTitle || !roomTargetTitle) {
+    if (!roomStartSlug || !roomStartTitle || !roomTargetSlug || !roomTargetTitle) {
       return;
     }
 
@@ -98,19 +97,40 @@ export function RaceRoomScreen({ code }: { code: string }) {
 
   useEffect(() => {
     if (!roomView?.self || roomView.self.role !== "spectator") {
+      syncedFollowTargetRef.current = null;
       setSelectedParticipantId(null);
       return;
     }
 
     if (
       selectedParticipantId &&
-      roomView.players.some((player: { _id: string }) => player._id === selectedParticipantId)
+      roomView.players.some((player) => player._id === selectedParticipantId)
     ) {
       return;
     }
 
     setSelectedParticipantId(roomView.winner?._id ?? roomView.players[0]?._id ?? null);
   }, [roomView, selectedParticipantId]);
+
+  useEffect(() => {
+    if (!playerToken || !roomView?.self || roomView.self.role !== "spectator" || !selectedParticipantId) {
+      return;
+    }
+
+    if (syncedFollowTargetRef.current === selectedParticipantId) {
+      return;
+    }
+
+    syncedFollowTargetRef.current = selectedParticipantId;
+    void setFollowTarget({
+      code: normalizedCode,
+      playerToken,
+      followingParticipantId: selectedParticipantId,
+    }).catch((cause) => {
+      syncedFollowTargetRef.current = null;
+      setError(cause instanceof Error ? cause.message : "Could not follow that player live.");
+    });
+  }, [normalizedCode, playerToken, roomView?.self, selectedParticipantId, setFollowTarget]);
 
   const countdownValue =
     roomView?.room.status === "countdown" && roomView.room.countdownStartedAt
@@ -124,7 +144,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
 
     if (roomView.self?.role === "spectator") {
       return (
-        roomView.players.find((player: { _id: string }) => player._id === selectedParticipantId) ??
+        roomView.players.find((player) => player._id === selectedParticipantId) ??
         roomView.winner ??
         roomView.players[0] ??
         null
@@ -134,13 +154,27 @@ export function RaceRoomScreen({ code }: { code: string }) {
     return roomView.self;
   }, [roomView, selectedParticipantId]);
 
+  const followTargetParticipantId =
+    roomView?.self?.role === "spectator"
+      ? selectedParticipantId
+      : roomView?.self?.role === "player"
+        ? roomView.self._id
+        : null;
+
+  const followView = useQuery(
+    api.races.getFollowView,
+    playerToken && followTargetParticipantId
+      ? {
+          code: normalizedCode,
+          playerToken,
+          targetParticipantId: followTargetParticipantId,
+        }
+      : "skip",
+  );
+
   const isSpectator = roomView?.self?.role === "spectator";
 
-  const getPlayerStatusMeta = (player: {
-    _id: string;
-    ready: boolean;
-    finishedAt?: number;
-  }) => {
+  const getPlayerStatusMeta = (player: { _id: string; ready: boolean; finishedAt?: number }) => {
     const isWinner = roomView?.winner?._id === player._id;
 
     if (isWinner) {
@@ -193,15 +227,16 @@ export function RaceRoomScreen({ code }: { code: string }) {
     return roomView.room.status !== "racing";
   }, [countdownValue, roomView]);
 
-  const statusRight = roomView?.room.status === "finished"
-    ? `${roomView.winner?.displayName ?? "A player"} won`
-    : roomView?.room.status === "countdown"
-      ? countdownValue === 0
-        ? "Go"
-        : `Starting in ${countdownValue}`
-      : roomView?.room.status === "racing"
-        ? "Race live"
-        : "Lobby ready";
+  const statusRight =
+    roomView?.room.status === "finished"
+      ? `${roomView.winner?.displayName ?? "A player"} won`
+      : roomView?.room.status === "countdown"
+        ? countdownValue === 0
+          ? "Go"
+          : `Starting in ${countdownValue}`
+        : roomView?.room.status === "racing"
+          ? "Race live"
+          : "Lobby ready";
 
   if (roomView === null) {
     return (
@@ -229,6 +264,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
   const isHost = roomView.self?.playerToken === roomView.room.hostPlayerToken;
   const canEditSetup = isHost && roomView.room.status === "lobby";
   const joinRole = roomView.room.status === "lobby" ? "player" : "spectator";
+  const followedParticipant = viewedParticipant?.role === "player" ? viewedParticipant : null;
 
   const submitJoin = () => {
     if (!playerToken || !joinName.trim()) {
@@ -265,9 +301,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
             Back To Lobby
           </Link>
           <div className="bevel-inset bg-white px-4 py-2">Room code: {normalizedCode}</div>
-          <div className="bevel-inset bg-white px-4 py-2">
-            Target: {roomView.room.targetTitle}
-          </div>
+          <div className="bevel-inset bg-white px-4 py-2">Target: {roomView.room.targetTitle}</div>
         </div>
       }
       sidebar={
@@ -357,11 +391,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
                 />
                 <button
                   type="submit"
-                  disabled={
-                    setupState === "saving" ||
-                    !startArticle ||
-                    !targetArticle
-                  }
+                  disabled={setupState === "saving" || !startArticle || !targetArticle}
                   className="bevel bg-panel px-4 py-2 font-bold disabled:text-[#6b7280]"
                 >
                   {setupState === "saving" ? "Saving Articles..." : "Save Articles"}
@@ -376,15 +406,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
           <section>
             <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">Players</div>
             <div className="space-y-2 px-2">
-              {roomView.players.map((player: {
-                _id: string;
-                displayName: string;
-                currentArticleTitle: string;
-                clickCount: number;
-                path: Array<{ slug: string; title: string }>;
-                ready: boolean;
-                finishedAt?: number;
-              }) => {
+              {roomView.players.map((player) => {
                 const isWatching = roomView.self?.role === "spectator" && selectedParticipantId === player._id;
                 const playerStatus = getPlayerStatusMeta(player);
 
@@ -398,15 +420,15 @@ export function RaceRoomScreen({ code }: { code: string }) {
                       }
                     }}
                     className={`bevel w-full px-3 py-3 text-left ${isWatching ? "bg-[#fff3b7]" : "bg-white"}`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-bold">{player.displayName}</span>
-                        <span
-                          className={`rounded-sm px-2 py-1 text-xs uppercase tracking-[0.2em] ${playerStatus.className}`}
-                        >
-                          {playerStatus.label}
-                        </span>
-                      </div>
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-bold">{player.displayName}</span>
+                      <span
+                        className={`rounded-sm px-2 py-1 text-xs uppercase tracking-[0.2em] ${playerStatus.className}`}
+                      >
+                        {playerStatus.label}
+                      </span>
+                    </div>
                     <div className="mt-2 text-sm text-[#334155]">{player.currentArticleTitle}</div>
                     <div className="mt-1 text-xs text-[#64748b]">
                       {player.clickCount} clicks · {player.path.length} articles visited
@@ -421,7 +443,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
             <section>
               <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">Spectators</div>
               <div className="space-y-2 px-2">
-                {roomView.spectators.map((spectator: { _id: string; displayName: string }) => (
+                {roomView.spectators.map((spectator) => (
                   <div key={spectator._id} className="bevel bg-[#f5f5f5] px-3 py-2">
                     {spectator.displayName}
                   </div>
@@ -434,9 +456,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
             <section>
               <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">Ready Check</div>
               <div className="space-y-3 px-2">
-                <p>
-                  Every player needs to mark ready before the five-second countdown begins.
-                </p>
+                <p>Every player needs to mark ready before the five-second countdown begins.</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -473,68 +493,54 @@ export function RaceRoomScreen({ code }: { code: string }) {
           <>
             {!isWinnerOverlayDismissed ? (
               <div className="winner-overlay">
-              <div className="winner-panel scanlines">
-                <div className="winner-marquee">
-                  <div className="winner-marquee-track">
-                    <span>Netcarta Champion</span>
-                    <span>Session Complete</span>
-                    <span>{roomView.winner.displayName} Wins</span>
-                    <span>Destination Reached</span>
-                    <span>Netcarta Champion</span>
-                    <span>Session Complete</span>
-                    <span>{roomView.winner.displayName} Wins</span>
-                    <span>Destination Reached</span>
-                  </div>
-                </div>
-
-                <div className="space-y-5 p-6 text-center md:p-8">
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setIsWinnerOverlayDismissed(true)}
-                      className="bevel bg-panel px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="text-xs uppercase tracking-[0.45em] text-[#1d4b8f]">
-                    Race Complete
-                  </div>
-                  <div className="font-body text-5xl leading-none text-[#111] md:text-7xl">
-                    {roomView.winner.displayName}
-                  </div>
-                  <div className="text-xl font-bold uppercase tracking-[0.28em] text-[#7c2d12] md:text-2xl">
-                    Wins The Room
+                <div className="winner-panel scanlines">
+                  <div className="winner-marquee">
+                    <div className="winner-marquee-track">
+                      <span>Netcarta Champion</span>
+                      <span>Session Complete</span>
+                      <span>{roomView.winner.displayName} Wins</span>
+                      <span>Destination Reached</span>
+                      <span>Netcarta Champion</span>
+                      <span>Session Complete</span>
+                      <span>{roomView.winner.displayName} Wins</span>
+                      <span>Destination Reached</span>
+                    </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="bevel-inset bg-white px-4 py-4">
-                      <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
-                        Destination
-                      </div>
-                      <div className="mt-2 text-lg font-bold text-[#111]">
-                        {roomView.room.targetTitle}
-                      </div>
+                  <div className="space-y-5 p-6 text-center md:p-8">
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setIsWinnerOverlayDismissed(true)}
+                        className="bevel bg-panel px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
+                      >
+                        Close
+                      </button>
                     </div>
-                    <div className="bevel-inset bg-white px-4 py-4">
-                      <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
-                        Clicks
-                      </div>
-                      <div className="mt-2 text-3xl font-bold text-[#111]">
-                        {roomView.winner.clickCount}
-                      </div>
+                    <div className="text-xs uppercase tracking-[0.45em] text-[#1d4b8f]">Race Complete</div>
+                    <div className="font-body text-5xl leading-none text-[#111] md:text-7xl">
+                      {roomView.winner.displayName}
                     </div>
-                    <div className="bevel-inset bg-white px-4 py-4">
-                      <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
-                        Articles Visited
+                    <div className="text-xl font-bold uppercase tracking-[0.28em] text-[#7c2d12] md:text-2xl">
+                      Wins The Room
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="bevel-inset bg-white px-4 py-4">
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">Destination</div>
+                        <div className="mt-2 text-lg font-bold text-[#111]">{roomView.room.targetTitle}</div>
                       </div>
-                      <div className="mt-2 text-3xl font-bold text-[#111]">
-                        {roomView.winner.path.length}
+                      <div className="bevel-inset bg-white px-4 py-4">
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">Clicks</div>
+                        <div className="mt-2 text-3xl font-bold text-[#111]">{roomView.winner.clickCount}</div>
+                      </div>
+                      <div className="bevel-inset bg-white px-4 py-4">
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">Articles Visited</div>
+                        <div className="mt-2 text-3xl font-bold text-[#111]">{roomView.winner.path.length}</div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
               </div>
             ) : null}
 
@@ -551,20 +557,19 @@ export function RaceRoomScreen({ code }: { code: string }) {
         {needsExplicitJoin ? (
           <div className="border-2 border-black bg-[rgba(255,255,255,0.88)] p-8">
             <div className="mx-auto max-w-xl">
-              <div className="text-xs uppercase tracking-[0.4em] text-[#1d4b8f]">
-                Join Session
-              </div>
+              <div className="text-xs uppercase tracking-[0.4em] text-[#1d4b8f]">Join Session</div>
               <h2 className="mt-3 font-body text-5xl text-[#111]">
                 {joinRole === "player" ? "Enter your name" : "Join as spectator"}
               </h2>
               <p className="mt-4 text-lg leading-8 text-[#334155]">
                 {joinRole === "player" ? (
                   <>
-                    Join room <b>{normalizedCode}</b> to race from <b>{roomView.room.startTitle}</b> to <b>{roomView.room.targetTitle}</b>.
+                    Join room <b>{normalizedCode}</b> to race from <b>{roomView.room.startTitle}</b> to{" "}
+                    <b>{roomView.room.targetTitle}</b>.
                   </>
                 ) : (
                   <>
-                    This session has already started. Enter your name and join room <b>{normalizedCode}</b> as a spectator to track every player live.
+                    This session has already started. Enter your name and join room <b>{normalizedCode}</b> as a spectator to follow the player live.
                   </>
                 )}
               </p>
@@ -602,116 +607,90 @@ export function RaceRoomScreen({ code }: { code: string }) {
               </form>
             </div>
           </div>
-        ) : isSpectator ? (
+        ) : viewedParticipant && roomView.self && playerToken ? (
           <div className="space-y-6">
-            <div className="border-2 border-black bg-[rgba(255,255,255,0.88)] p-6">
-              <div className="text-xs uppercase tracking-[0.35em] text-[#1d4b8f]">
-                Spectator Dashboard
-              </div>
-              <h2 className="mt-3 font-body text-5xl text-[#111]">Live Room Status</h2>
-              <p className="mt-4 text-lg leading-8 text-[#334155]">
-                Track where every player is, how many clicks they&apos;ve used, and who reaches <b>{roomView.room.targetTitle}</b> first.
-              </p>
-            </div>
+            {isSpectator ? (
+              <div className="grid gap-4 xl:grid-cols-[1.25fr,0.75fr]">
+                <div className="border-2 border-black bg-[rgba(255,255,255,0.88)] p-6">
+                  <div className="text-xs uppercase tracking-[0.35em] text-[#1d4b8f]">Spectator Sync</div>
+                  <h2 className="mt-3 font-body text-5xl text-[#111]">Following {followedParticipant?.displayName}</h2>
+                  <p className="mt-4 text-lg leading-8 text-[#334155]">
+                    The player governs article changes and scroll. Your cursor is visible to the player, and every article click becomes a live suggestion pulse.
+                  </p>
+                </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {roomView.players.map((player: {
-                _id: string;
-                displayName: string;
-                currentArticleTitle: string;
-                clickCount: number;
-                path: Array<{ slug: string; title: string }>;
-                ready: boolean;
-                finishedAt?: number;
-              }) => {
-                const playerStatus = getPlayerStatusMeta(player);
-
-                return (
-                  <div key={player._id} className="border-2 border-black bg-[rgba(255,255,255,0.9)] p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.25em] text-[#64748b]">
-                          Player
-                        </div>
-                        <div className="mt-1 text-2xl font-bold text-[#111]">{player.displayName}</div>
-                      </div>
-                      <span
-                        className={`rounded-sm px-2 py-1 text-xs uppercase tracking-[0.2em] ${playerStatus.className}`}
-                      >
-                        {playerStatus.label}
-                      </span>
+                <div className="border-2 border-black bg-[rgba(255,248,220,0.86)] p-5">
+                  <div className="bg-[#b0b0b0] px-2 py-1 text-2xl font-bold">Followed Player</div>
+                  <div className="mt-4 space-y-3">
+                    <div className="bevel-inset bg-white px-3 py-3">
+                      <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">Current Article</div>
+                      <div className="mt-1 text-lg font-bold text-[#111]">{followedParticipant?.currentArticleTitle}</div>
                     </div>
-
-                    <div className="mt-5 space-y-4">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
                       <div className="bevel-inset bg-white px-3 py-3">
-                        <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
-                          Current Article
-                        </div>
-                        <div className="mt-1 text-lg font-bold text-[#1f2937]">
-                          {player.currentArticleTitle}
-                        </div>
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">Clicks</div>
+                        <div className="mt-1 text-2xl font-bold text-[#111]">{followedParticipant?.clickCount ?? 0}</div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="bevel-inset bg-white px-3 py-3">
-                          <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
-                            Clicks
-                          </div>
-                          <div className="mt-1 text-2xl font-bold text-[#111]">{player.clickCount}</div>
-                        </div>
-                        <div className="bevel-inset bg-white px-3 py-3">
-                          <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">
-                            Articles Visited
-                          </div>
-                          <div className="mt-1 text-2xl font-bold text-[#111]">{player.path.length}</div>
-                        </div>
+                      <div className="bevel-inset bg-white px-3 py-3">
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-[#64748b]">Visited</div>
+                        <div className="mt-1 text-2xl font-bold text-[#111]">{followedParticipant?.path.length ?? 0}</div>
                       </div>
-
-                      <details className="border-2 border-black bg-[rgba(255,248,220,0.62)] px-3 py-3">
-                        <summary className="cursor-pointer list-none font-bold text-[#111]">
-                          View Click History
-                        </summary>
-                        <div className="mt-3 space-y-2 border-t border-black/15 pt-3 text-sm">
-                          {player.path.map((step, index) => (
-                            <div
-                              key={`${player._id}-${step.slug}-${index}`}
-                              className="bevel-inset flex items-start gap-3 bg-white px-3 py-2"
-                            >
-                              <div className="min-w-10 text-xs font-bold uppercase tracking-[0.2em] text-[#64748b]">
-                                {index === 0 ? "Start" : `#${index}`}
-                              </div>
-                              <div className="font-medium text-[#1f2937]">{step.title}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </details>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              </div>
+            ) : null}
+
+            <RaceArticleViewer
+              code={normalizedCode}
+              playerToken={playerToken}
+              viewerParticipantId={roomView.self._id}
+              viewerDisplayName={roomView.self.displayName}
+              mode={isSpectator ? "spectator" : "player"}
+              slug={viewedParticipant.currentArticleSlug}
+              targetTitle={roomView.room.targetTitle}
+              navigationLocked={navigationLocked || isSpectator}
+              followingParticipantId={isSpectator ? followedParticipant?._id ?? null : null}
+              followedParticipantId={isSpectator ? followedParticipant?._id ?? null : null}
+              followedParticipantName={isSpectator ? followedParticipant?.displayName ?? null : null}
+              remotePlayerPresence={isSpectator ? followView?.targetPresence ?? null : null}
+              spectatorPresences={!isSpectator ? followView?.followerPresences ?? [] : []}
+              recentSuggestions={!isSpectator ? followView?.recentSuggestions ?? [] : []}
+              onError={(message) => setError(message)}
+              onNavigate={(nextSlug) => {
+                setError(null);
+
+                void advanceParticipant({
+                  code: normalizedCode,
+                  playerToken,
+                  toSlug: nextSlug,
+                }).catch((cause) => {
+                  setError(cause instanceof Error ? cause.message : "Could not move to that article.");
+                });
+              }}
+            />
+
+            {isSpectator ? (
+              <details className="border-2 border-black bg-[rgba(255,255,255,0.88)] px-5 py-4">
+                <summary className="cursor-pointer list-none font-bold text-[#111]">
+                  Followed Player Click History
+                </summary>
+                <div className="mt-4 space-y-2 border-t border-black/15 pt-4 text-sm">
+                  {followedParticipant?.path.map((step, index) => (
+                    <div
+                      key={`${followedParticipant._id}-${step.slug}-${index}`}
+                      className="bevel-inset flex items-start gap-3 bg-white px-3 py-2"
+                    >
+                      <div className="min-w-10 text-xs font-bold uppercase tracking-[0.2em] text-[#64748b]">
+                        {index === 0 ? "Start" : `#${index}`}
+                      </div>
+                      <div className="font-medium text-[#1f2937]">{step.title}</div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </div>
-        ) : viewedParticipant ? (
-          <RaceArticleViewer
-            slug={viewedParticipant.currentArticleSlug}
-            targetTitle={roomView.room.targetTitle}
-            navigationLocked={navigationLocked || roomView.self?.role === "spectator"}
-            onNavigate={(nextSlug) => {
-              if (!playerToken) {
-                return;
-              }
-
-              setError(null);
-
-              void advanceParticipant({
-                code: normalizedCode,
-                playerToken,
-                toSlug: nextSlug,
-              }).catch((cause) => {
-                setError(cause instanceof Error ? cause.message : "Could not move to that article.");
-              });
-            }}
-          />
         ) : (
           <div className="border-2 border-black bg-[rgba(255,255,255,0.82)] p-6 text-lg">
             Waiting for a player to join this room.

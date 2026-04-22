@@ -63,6 +63,14 @@ a {
 
 .article-html {
   color: #1f2937;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.article-document {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .article-html::after {
@@ -148,12 +156,19 @@ a {
   background: rgba(255, 255, 255, 0.82);
   font-family: Tahoma, Geneva, sans-serif;
   font-size: 0.88rem;
+  max-width: 100%;
 }
 
 .article-html .infobox {
   float: right;
   width: min(320px, 100%);
   margin: 0 0 1rem 1rem;
+  table-layout: fixed;
+}
+
+.article-html .wikitable {
+  display: block;
+  overflow-x: auto;
 }
 
 .article-html .infobox caption,
@@ -170,6 +185,7 @@ a {
   border: 1px solid #777;
   padding: 0.35rem 0.5rem;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
 .article-html .thumb,

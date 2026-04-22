@@ -495,7 +495,7 @@ export function ArticleScreen({ slug }: { slug: string }) {
 
         {cached ? (
         <div className="grid flex-1 gap-6 p-6 lg:grid-cols-[1.35fr,0.85fr] lg:p-8">
-          <section className="space-y-6">
+          <section className="min-w-0 space-y-6">
             <div className="border-2 border-black bg-[rgba(255,255,255,0.82)] p-6">
               <div className="mb-4 flex items-center justify-between gap-3 border-b border-black/20 pb-4">
                 <div>
@@ -627,7 +627,7 @@ export function ArticleScreen({ slug }: { slug: string }) {
             )}
           </section>
 
-          <section className="space-y-6">
+          <section className="min-w-0 space-y-6">
             <div className="border-2 border-black bg-[rgba(0,0,0,0.86)] p-5 text-white">
               <div className="text-xs uppercase tracking-[0.45em] text-[#87dcdc]">
                 See Also

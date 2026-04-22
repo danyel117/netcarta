@@ -149,7 +149,7 @@ export function EncartaShell({
 
           <main
             className={clsx(
-              "relative flex min-h-full flex-col bg-[radial-gradient(circle_at_top_right,rgba(116,172,222,0.28),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.55),rgba(255,255,255,0.15))]",
+              "relative flex min-h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(116,172,222,0.28),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.55),rgba(255,255,255,0.15))]",
               actions && "pb-24"
             )}
           >

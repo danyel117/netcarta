@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
+const nextPublicConvexUrl =
+  process.env.NEXT_PUBLIC_CONVEX_URL ?? "https://little-deer-503.convex.cloud";
+
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_CONVEX_URL: nextPublicConvexUrl,
+  },
   images: {
     remotePatterns: [
       {

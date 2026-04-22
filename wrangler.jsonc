@@ -16,6 +16,11 @@
     "nodejs_compat",
     "global_fetch_strictly_public"
   ],
+  "vars": {
+    "NEXT_PUBLIC_CONVEX_URL": "https://little-deer-503.convex.cloud",
+    "CLOUDFLARE_ACCOUNT_ID": "03ae7b07c56b9f9eab31188b3cb8796a",
+    "CLOUDFLARE_AI_MODEL": "@cf/moonshotai/kimi-k2.5"
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

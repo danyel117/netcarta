@@ -1,0 +1,116 @@
+@import "98.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: only light;
+  --desktop: #008080;
+  --panel: #c0c0c0;
+  --shadow: #808080;
+  --highlight: #ffffff;
+  --accent: #000080;
+  --body: #f6f1e5;
+  --ink: #101010;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 35%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12)),
+    var(--desktop);
+  color: var(--ink);
+  font-family: Tahoma, Geneva, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.article-body {
+  font-family: "Times New Roman", serif;
+  line-height: 1.6;
+  font-size: 1.06rem;
+}
+
+.desktop-shell {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.desktop-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 100% 3px;
+  opacity: 0.08;
+}
+
+.window-frame {
+  max-width: 1400px;
+  margin: 0 auto;
+  border: 2px solid #000;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+}
+
+.encarta-toolbar button:disabled {
+  color: #6b7280;
+}
+
+.bevel {
+  border-top: 2px solid var(--highlight);
+  border-left: 2px solid var(--highlight);
+  border-right: 2px solid var(--shadow);
+  border-bottom: 2px solid var(--shadow);
+}
+
+.bevel-inset {
+  border-top: 2px solid var(--shadow);
+  border-left: 2px solid var(--shadow);
+  border-right: 2px solid var(--highlight);
+  border-bottom: 2px solid var(--highlight);
+}
+
+.link-list a:hover {
+  text-decoration: underline;
+}
+
+.scroll-panel {
+  scrollbar-width: thin;
+  scrollbar-color: #6b7280 #e5e7eb;
+}
+
+.scroll-panel::-webkit-scrollbar {
+  width: 12px;
+}
+
+.scroll-panel::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.scanlines {
+  position: relative;
+}
+
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.03) 50%);
+  background-size: 100% 4px;
+}

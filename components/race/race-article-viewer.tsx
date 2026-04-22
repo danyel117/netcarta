@@ -162,13 +162,18 @@ export function RaceArticleViewer({
   );
 
   const title = (fullArticle?.title ?? cached?.title ?? slug).replaceAll("_", " ");
+  const isFullEntryPending = Boolean(cached && !fullArticle && fullStatus !== "error");
   const statusMessage = useMemo(() => {
     if (navigationLocked) {
       return "Navigation locked until the countdown finishes";
     }
 
+    if (isFullEntryPending) {
+      return "Loading encyclopedia entry...";
+    }
+
     return hoveredStatus ?? "Inline article links are live";
-  }, [hoveredStatus, navigationLocked]);
+  }, [hoveredStatus, isFullEntryPending, navigationLocked]);
 
   return (
     <div className="space-y-5">
@@ -183,14 +188,16 @@ export function RaceArticleViewer({
       </div>
 
       <div className="border-2 border-black bg-[rgba(255,255,255,0.84)] p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-black/20 pb-4">
+        <div className="mb-4 border-b border-black/20 pb-4">
           <div>
             <div className="text-xs uppercase tracking-[0.42em] text-[#1d4b8f]">
               Current Article
             </div>
             <h2 className="font-body text-5xl text-[#111]">{title}</h2>
           </div>
-          <div className="bevel-inset bg-white px-4 py-2 text-sm">{statusMessage}</div>
+          <div className="mt-4 inline-flex h-12 items-center bevel-inset bg-white px-4 py-2 text-sm leading-5">
+            {statusMessage}
+          </div>
         </div>
 
         {isLoading ? (
@@ -212,7 +219,42 @@ export function RaceArticleViewer({
             onMouseLeave={() => setHoveredStatus(null)}
             className="article-body text-[#1f2937]"
           >
-            {fullArticle ? (
+            {isFullEntryPending ? (
+              <div className="space-y-5">
+                <div className="border-2 border-black bg-[#fff3b7] px-5 py-4 text-[#334155]">
+                  <div className="text-xs uppercase tracking-[0.3em] text-[#92400e]">
+                    Opening Article
+                  </div>
+                  <div className="mt-2 text-lg font-bold text-[#111]">
+                    Loading the full encyclopedia entry
+                  </div>
+                  <p className="mt-2 text-sm leading-6">
+                    Preparing article text and inline links for the next move.
+                  </p>
+                </div>
+
+                <div className="border-2 border-black bg-white p-5">
+                  <div className="mb-5 flex gap-3">
+                    <div className="h-4 w-24 bg-[#d6dde8]" />
+                    <div className="h-4 w-16 bg-[#e5e7eb]" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-5 w-full bg-[#dbe4f0]" />
+                    <div className="h-5 w-[92%] bg-[#e5e7eb]" />
+                    <div className="h-5 w-[96%] bg-[#dbe4f0]" />
+                    <div className="h-5 w-[78%] bg-[#e5e7eb]" />
+                  </div>
+                  <div className="mt-8 border-t border-black/15 pt-5">
+                    <div className="mb-4 h-4 w-32 bg-[#cfd8e3]" />
+                    <div className="space-y-3">
+                      <div className="h-4 w-full bg-[#e5e7eb]" />
+                      <div className="h-4 w-[88%] bg-[#dbe4f0]" />
+                      <div className="h-4 w-[93%] bg-[#e5e7eb]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : fullArticle ? (
               <div className="space-y-8">
                 <div
                   className="article-html article-document"
@@ -231,12 +273,20 @@ export function RaceArticleViewer({
                 ))}
               </div>
             ) : (
-              <div>
+              <div className="border-2 border-black bg-[#fff9ec] px-5 py-4">
+                <div className="text-xs uppercase tracking-[0.3em] text-[#92400e]">
+                  Fallback Summary
+                </div>
+                <div className="mt-2 text-sm text-[#7c2d12]">
+                  The full article could not be loaded, so the cached summary is shown instead.
+                </div>
+                <div className="mt-4">
                 {cached.summary.split("\n").map((paragraph: string, index: number) => (
                   <p key={`${paragraph.slice(0, 20)}-${index}`} className="mb-4">
                     {paragraph}
                   </p>
                 ))}
+                </div>
               </div>
             )}
           </div>
@@ -244,7 +294,7 @@ export function RaceArticleViewer({
 
         {fullStatus === "loading" ? (
           <div className="mt-6 border-t border-black/20 pt-4 text-sm text-[#475569]">
-            Loading the full encyclopedia entry...
+            {cached ? "Preparing inline article links..." : "Loading the full encyclopedia entry..."}
           </div>
         ) : null}
 

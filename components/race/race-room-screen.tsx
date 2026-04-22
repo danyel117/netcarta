@@ -368,7 +368,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
                 displayName: string;
                 currentArticleTitle: string;
                 clickCount: number;
-                path: Array<unknown>;
+                path: Array<{ slug: string; title: string }>;
                 ready: boolean;
                 finishedAt?: number;
               }) => {
@@ -538,7 +538,7 @@ export function RaceRoomScreen({ code }: { code: string }) {
                 displayName: string;
                 currentArticleTitle: string;
                 clickCount: number;
-                path: Array<unknown>;
+                path: Array<{ slug: string; title: string }>;
                 ready: boolean;
                 finishedAt?: number;
               }) => {
@@ -584,6 +584,25 @@ export function RaceRoomScreen({ code }: { code: string }) {
                           <div className="mt-1 text-2xl font-bold text-[#111]">{player.path.length}</div>
                         </div>
                       </div>
+
+                      <details className="border-2 border-black bg-[rgba(255,248,220,0.62)] px-3 py-3">
+                        <summary className="cursor-pointer list-none font-bold text-[#111]">
+                          View Click History
+                        </summary>
+                        <div className="mt-3 space-y-2 border-t border-black/15 pt-3 text-sm">
+                          {player.path.map((step, index) => (
+                            <div
+                              key={`${player._id}-${step.slug}-${index}`}
+                              className="bevel-inset flex items-start gap-3 bg-white px-3 py-2"
+                            >
+                              <div className="min-w-10 text-xs font-bold uppercase tracking-[0.2em] text-[#64748b]">
+                                {index === 0 ? "Start" : `#${index}`}
+                              </div>
+                              <div className="font-medium text-[#1f2937]">{step.title}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
                     </div>
                   </div>
                 );

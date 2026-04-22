@@ -44,9 +44,213 @@ a {
   font-size: 1.06rem;
 }
 
+.article-toc-link {
+  display: block;
+  padding: 6px 8px;
+  color: #111827;
+  text-decoration: none;
+}
+
+.article-toc-link:hover {
+  background: #dbeafe;
+  text-decoration: underline;
+}
+
+.article-toc-link.is-active {
+  background: #000080;
+  color: #fff;
+}
+
+.article-html {
+  color: #1f2937;
+}
+
+.article-html::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.article-html p,
+.article-html ul,
+.article-html ol,
+.article-html dl,
+.article-html table,
+.article-html blockquote {
+  margin: 0 0 1rem;
+}
+
+.article-html ul,
+.article-html ol {
+  padding-left: 1.5rem;
+}
+
+.article-html li + li {
+  margin-top: 0.25rem;
+}
+
+.article-html a {
+  color: #0000cc;
+  text-decoration: underline;
+}
+
+.article-html a:visited {
+  color: #551a8b;
+}
+
+.article-html a:hover {
+  color: #c2410c;
+}
+
+.article-html .mw-editsection,
+.article-html .mw-editsection-like,
+.article-html .mw-editsection-bracket,
+.article-html a[title^="Edit section"] {
+  display: none !important;
+}
+
+.article-html img {
+  max-width: 100%;
+  height: auto;
+}
+
+.article-html .mw-heading {
+  margin: 1.75rem 0 0.75rem;
+  border-top: 2px solid #808080;
+  border-left: 2px solid #ffffff;
+  border-right: 2px solid #808080;
+  border-bottom: 2px solid #ffffff;
+  background: #c0c0c0;
+  padding: 0.45rem 0.7rem;
+}
+
+.article-html .mw-heading h2,
+.article-html .mw-heading h3,
+.article-html .mw-heading h4 {
+  margin: 0;
+  color: #111;
+  font-family: Tahoma, Geneva, sans-serif;
+  font-size: 1.25rem;
+}
+
+.article-html .mw-heading h3 {
+  font-size: 1.05rem;
+}
+
+.article-html .mw-heading h4 {
+  font-size: 0.95rem;
+}
+
+.article-html .infobox,
+.article-html .wikitable {
+  border-collapse: collapse;
+  border: 2px solid #000;
+  background: rgba(255, 255, 255, 0.82);
+  font-family: Tahoma, Geneva, sans-serif;
+  font-size: 0.88rem;
+}
+
+.article-html .infobox {
+  float: right;
+  width: min(320px, 100%);
+  margin: 0 0 1rem 1rem;
+}
+
+.article-html .infobox caption,
+.article-html .infobox th,
+.article-html .wikitable th {
+  background: #d7d7d7;
+  font-weight: 700;
+}
+
+.article-html .infobox td,
+.article-html .infobox th,
+.article-html .wikitable td,
+.article-html .wikitable th {
+  border: 1px solid #777;
+  padding: 0.35rem 0.5rem;
+  vertical-align: top;
+}
+
+.article-html .thumb,
+.article-html .thumbinner {
+  max-width: 100%;
+}
+
+.article-html .thumb {
+  border: 2px solid #000;
+  background: rgba(255, 247, 227, 0.95);
+  padding: 0.5rem;
+}
+
+.article-html .thumbcaption,
+.article-html .infobox-caption,
+.article-html figcaption {
+  color: #334155;
+  font-family: Tahoma, Geneva, sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.article-html .references {
+  font-size: 0.95rem;
+}
+
+.article-html sup.reference {
+  font-family: Tahoma, Geneva, sans-serif;
+  font-size: 0.72rem;
+}
+
+.article-html .reflist {
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  padding-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .article-html .infobox {
+    float: none;
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
 .desktop-shell {
   min-height: 100vh;
   padding: 24px;
+}
+
+.reader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.reader-window {
+  width: min(1440px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+}
+
+.reader-body {
+  min-height: 0;
+  flex: 1;
+}
+
+.reader-sidebar,
+.reader-scroll {
+  min-height: 0;
+}
+
+.reader-document {
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 .desktop-shell::before {
@@ -113,4 +317,14 @@ a {
   pointer-events: none;
   background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.03) 50%);
   background-size: 100% 4px;
+}
+
+@media (max-width: 900px) {
+  .reader-overlay {
+    padding: 10px;
+  }
+
+  .reader-window {
+    max-height: calc(100vh - 20px);
+  }
 }

@@ -22,11 +22,17 @@ export function EncartaShell({
   subtitle,
   children,
   actions,
+  sidebar,
+  statusLeft,
+  statusRight,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  sidebar?: React.ReactNode;
+  statusLeft?: React.ReactNode;
+  statusRight?: React.ReactNode;
 }) {
   return (
     <div className="desktop-shell">
@@ -78,61 +84,65 @@ export function EncartaShell({
 
         <div className="grid min-h-[calc(100vh-170px)] grid-cols-1 bg-[linear-gradient(135deg,#eff7ff_0%,#f5eedf_38%,#d9e7f6_100%)] lg:grid-cols-[260px,1fr]">
           <aside className="border-r-2 border-black bg-[#efefef] p-4">
-            <div className="bevel-inset mb-4 bg-black px-3 py-4 text-white">
-              <div className="text-xs uppercase tracking-[0.3em] text-[#8dd3d3]">
-                Encyclopedia
-              </div>
-              <h1 className="mt-2 text-3xl font-semibold">{title}</h1>
-              {subtitle ? (
-                <p className="mt-3 text-sm leading-5 text-[#d4d4d4]">{subtitle}</p>
-              ) : null}
-            </div>
+            {sidebar ?? (
+              <>
+                <div className="bevel-inset mb-4 bg-black px-3 py-4 text-white">
+                  <div className="text-xs uppercase tracking-[0.3em] text-[#8dd3d3]">
+                    Encyclopedia
+                  </div>
+                  <h1 className="mt-2 text-3xl font-semibold">{title}</h1>
+                  {subtitle ? (
+                    <p className="mt-3 text-sm leading-5 text-[#d4d4d4]">{subtitle}</p>
+                  ) : null}
+                </div>
 
-            <div className="space-y-4 text-sm">
-              <section>
-                <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">
-                  Search
-                </div>
-                <div className="px-2">
-                  <SearchBox />
-                </div>
-              </section>
+                <div className="space-y-4 text-sm">
+                  <section>
+                    <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">
+                      Search
+                    </div>
+                    <div className="px-2">
+                      <SearchBox />
+                    </div>
+                  </section>
 
-              <section>
-                <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">
-                  Explore Netcarta
-                </div>
-                <div className="space-y-1 px-2 text-[17px]">
-                  <Link
-                    href="/articles/Internet"
-                    className="block py-1 hover:underline"
-                  >
-                    Featured article
-                  </Link>
-                  <Link href="/race" className="block py-1 hover:underline">
-                    Netcarta race lobby
-                  </Link>
-                  <span className="block py-1 text-[#6b7280]">Atlas</span>
-                  <span className="block py-1 text-[#6b7280]">MindMaze</span>
-                </div>
-              </section>
+                  <section>
+                    <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">
+                      Explore Netcarta
+                    </div>
+                    <div className="space-y-1 px-2 text-[17px]">
+                      <Link
+                        href="/articles/Internet"
+                        className="block py-1 hover:underline"
+                      >
+                        Featured article
+                      </Link>
+                      <Link href="/race" className="block py-1 hover:underline">
+                        Netcarta race lobby
+                      </Link>
+                      <span className="block py-1 text-[#6b7280]">Atlas</span>
+                      <span className="block py-1 text-[#6b7280]">MindMaze</span>
+                    </div>
+                  </section>
 
-              <section>
-                <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">
-                  Session Tools
+                  <section>
+                    <div className="mb-2 bg-[#b0b0b0] px-2 py-1 text-xl font-bold">
+                      Session Tools
+                    </div>
+                    <div className="space-y-2 px-2 text-[15px] text-[#202020]">
+                      <p>
+                        Realtime rooms, cached articles, and a judge-friendly
+                        leaderboard live in Convex.
+                      </p>
+                      <p>
+                        Use the top toolbar to jump between the home hub, article
+                        chrome, and race flow.
+                      </p>
+                    </div>
+                  </section>
                 </div>
-                <div className="space-y-2 px-2 text-[15px] text-[#202020]">
-                  <p>
-                    Realtime rooms, cached articles, and a judge-friendly
-                    leaderboard live in Convex.
-                  </p>
-                  <p>
-                    Use the top toolbar to jump between the home hub, article
-                    chrome, and race flow.
-                  </p>
-                </div>
-              </section>
-            </div>
+              </>
+            )}
           </aside>
 
           <main
@@ -151,8 +161,8 @@ export function EncartaShell({
         </div>
 
         <div className="flex items-center justify-between border-t-2 border-black bg-[#d7d7d7] px-3 py-1 text-xs">
-          <span>Ready</span>
-          <span>Internet</span>
+          <span>{statusLeft ?? "Ready"}</span>
+          <span>{statusRight ?? "Internet"}</span>
         </div>
       </div>
     </div>

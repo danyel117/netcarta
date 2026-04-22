@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { clsx } from "clsx";
 
+import { RecommendArticleDialog } from "@/components/recommend/recommend-article-dialog";
 import { SearchBox } from "@/components/search/search-box";
 
 type ToolbarItem = {
@@ -112,6 +113,7 @@ export function EncartaShell({
                   <Link href="/race" className="block py-1 hover:underline">
                     Netcarta race lobby
                   </Link>
+                  <RecommendArticleDialog />
                   <span className="block py-1 text-[#6b7280]">Atlas</span>
                   <span className="block py-1 text-[#6b7280]">MindMaze</span>
                 </div>

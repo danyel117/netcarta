@@ -125,6 +125,22 @@ function clampRatio(value: number) {
   return Math.max(0, Math.min(value, 1));
 }
 
+function findClosestAnchor(target: EventTarget | null) {
+  if (target instanceof HTMLAnchorElement) {
+    return target;
+  }
+
+  if (target instanceof HTMLElement) {
+    return target.closest("a");
+  }
+
+  if (target instanceof Text) {
+    return target.parentElement?.closest("a") ?? null;
+  }
+
+  return null;
+}
+
 export function RaceArticleViewer({
   code,
   playerToken,
@@ -419,8 +435,7 @@ export function RaceArticleViewer({
 
   const handleDocumentClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement;
-      const anchor = target.closest("a");
+      const anchor = findClosestAnchor(event.target);
 
       if (!(anchor instanceof HTMLAnchorElement)) {
         return;
@@ -496,8 +511,7 @@ export function RaceArticleViewer({
       setLocalCursor({ x: cursorXRatio, y: cursorYRatio });
       schedulePresenceSync({ cursorXRatio, cursorYRatio });
 
-      const target = event.target as HTMLElement;
-      const anchor = target.closest("a");
+      const anchor = findClosestAnchor(event.target);
 
       if (!(anchor instanceof HTMLAnchorElement)) {
         if (hoveredStatus !== null) {

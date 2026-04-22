@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { fetchFullArticlePayload } from "../lib/wikipedia-full";
-import { fetchWikipediaArticle, resolveArticlePreview } from "../lib/wikipedia";
+import { fetchWikipediaArticle } from "../lib/wikipedia";
 import { Doc } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import {
@@ -100,15 +100,10 @@ async function cacheInlineLinks(slug: string) {
   };
 }
 
-async function resolveSetupQueries(startQuery: string, targetQuery: string) {
-  const [startPreview, targetPreview] = await Promise.all([
-    resolveArticlePreview(startQuery),
-    resolveArticlePreview(targetQuery),
-  ]);
-
-  if (!startPreview || !targetPreview) {
-    throw new Error("Choose two real Wikipedia articles before saving the room.");
-  }
+async function resolveSetupArticles(
+  startPreview: { slug: string; title: string },
+  targetPreview: { slug: string; title: string },
+) {
 
   if (startPreview.slug === targetPreview.slug) {
     throw new Error("Start and destination articles need to be different.");
@@ -233,12 +228,18 @@ export const createRoom = action({
   args: {
     playerToken: v.string(),
     displayName: v.string(),
-    startQuery: v.string(),
-    targetQuery: v.string(),
+    startArticle: v.object({
+      slug: v.string(),
+      title: v.string(),
+    }),
+    targetArticle: v.object({
+      slug: v.string(),
+      title: v.string(),
+    }),
   },
   handler: async (ctx, args): Promise<{ code: string }> => {
     const { startPreview, startCache, targetPreview, targetCache } =
-      await resolveSetupQueries(args.startQuery, args.targetQuery);
+      await resolveSetupArticles(args.startArticle, args.targetArticle);
 
     await Promise.all([
       ctx.runMutation(api.articles.upsertArticle, startCache),
@@ -313,12 +314,18 @@ export const updateRoomSetup = action({
   args: {
     code: v.string(),
     playerToken: v.string(),
-    startQuery: v.string(),
-    targetQuery: v.string(),
+    startArticle: v.object({
+      slug: v.string(),
+      title: v.string(),
+    }),
+    targetArticle: v.object({
+      slug: v.string(),
+      title: v.string(),
+    }),
   },
   handler: async (ctx, args): Promise<{ ok: boolean }> => {
     const { startPreview, startCache, targetPreview, targetCache } =
-      await resolveSetupQueries(args.startQuery, args.targetQuery);
+      await resolveSetupArticles(args.startArticle, args.targetArticle);
 
     await Promise.all([
       ctx.runMutation(api.articles.upsertArticle, startCache),

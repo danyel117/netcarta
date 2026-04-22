@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { api } from "@/convex/_generated/api";
+import { RaceArticlePicker } from "@/components/race/race-article-picker";
 import { EncartaShell } from "@/components/shell/encarta-shell";
 import { useRaceIdentity } from "@/components/race/use-race-identity";
+import type { ArticlePreview } from "@/lib/types";
 
 type RecentRaceResult = {
   _id: string;
@@ -22,14 +24,25 @@ export function RaceHubScreen() {
   const { playerToken, displayName, setDisplayName, isHydrated } = useRaceIdentity();
   const createRoom = useAction(api.races.createRoom);
   const recentResults = useQuery(api.races.listRecentResults, {});
-  const [startQuery, setStartQuery] = useState("Lando Norris");
-  const [targetQuery, setTargetQuery] = useState("Border Collie");
+  const [startArticle, setStartArticle] = useState<ArticlePreview | null>({
+    slug: "Lando_Norris",
+    title: "Lando Norris",
+  });
+  const [targetArticle, setTargetArticle] = useState<ArticlePreview | null>({
+    slug: "Border_Collie",
+    title: "Border Collie",
+  });
   const [joinCode, setJoinCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recentRaceResults = recentResults as RecentRaceResult[] | undefined;
 
-  const canCreate = isHydrated && Boolean(playerToken) && displayName.trim();
+  const canCreate =
+    isHydrated &&
+    Boolean(playerToken) &&
+    Boolean(displayName.trim()) &&
+    Boolean(startArticle) &&
+    Boolean(targetArticle);
 
   return (
     <EncartaShell
@@ -54,14 +67,19 @@ export function RaceHubScreen() {
                   return;
                 }
 
+                if (!startArticle || !targetArticle) {
+                  setError("Choose the starting and destination articles from the search results.");
+                  return;
+                }
+
                 setIsCreating(true);
                 setError(null);
 
                 void createRoom({
                   playerToken,
                   displayName: displayName.trim(),
-                  startQuery,
-                  targetQuery,
+                  startArticle,
+                  targetArticle,
                 })
                   .then(({ code }) => {
                     router.push(`/race/${code}`);
@@ -83,27 +101,19 @@ export function RaceHubScreen() {
                 />
               </label>
 
-              <label className="block text-sm font-bold">
-                Starting Article
-                <input
-                  type="text"
-                  value={startQuery}
-                  onChange={(event) => setStartQuery(event.target.value)}
-                  placeholder="Lando Norris"
-                  className="bevel-inset mt-2 w-full bg-white px-3 py-2 text-base outline-none"
-                />
-              </label>
+              <RaceArticlePicker
+                label="Starting Article"
+                placeholder="Search for the opening article"
+                selectedArticle={startArticle}
+                onSelect={setStartArticle}
+              />
 
-              <label className="block text-sm font-bold">
-                Destination Article
-                <input
-                  type="text"
-                  value={targetQuery}
-                  onChange={(event) => setTargetQuery(event.target.value)}
-                  placeholder="Border Collie"
-                  className="bevel-inset mt-2 w-full bg-white px-3 py-2 text-base outline-none"
-                />
-              </label>
+              <RaceArticlePicker
+                label="Destination Article"
+                placeholder="Search for the destination article"
+                selectedArticle={targetArticle}
+                onSelect={setTargetArticle}
+              />
 
               <button
                 type="submit"

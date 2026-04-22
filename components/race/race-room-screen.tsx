@@ -5,9 +5,11 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
+import { RaceArticlePicker } from "@/components/race/race-article-picker";
 import { RaceArticleViewer } from "@/components/race/race-article-viewer";
 import { useRaceIdentity } from "@/components/race/use-race-identity";
 import { EncartaShell } from "@/components/shell/encarta-shell";
+import type { ArticlePreview } from "@/lib/types";
 
 function formatCountdown(countdownStartedAt: number, now: number) {
   const remaining = 5 - Math.floor((now - countdownStartedAt) / 1000);
@@ -31,11 +33,14 @@ export function RaceRoomScreen({ code }: { code: string }) {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
+  const [isWinnerOverlayDismissed, setIsWinnerOverlayDismissed] = useState(false);
   const [joinName, setJoinName] = useState(displayName);
-  const [startQuery, setStartQuery] = useState("");
-  const [targetQuery, setTargetQuery] = useState("");
+  const [startArticle, setStartArticle] = useState<ArticlePreview | null>(null);
+  const [targetArticle, setTargetArticle] = useState<ArticlePreview | null>(null);
   const room = roomView?.room;
+  const roomStartSlug = room?.startSlug;
   const roomStartTitle = room?.startTitle;
+  const roomTargetSlug = room?.targetSlug;
   const roomTargetTitle = room?.targetTitle;
 
   useEffect(() => {
@@ -43,13 +48,29 @@ export function RaceRoomScreen({ code }: { code: string }) {
   }, [displayName]);
 
   useEffect(() => {
+    if (roomView?.room.status === "finished" && roomView.winner?._id) {
+      setIsWinnerOverlayDismissed(false);
+    }
+  }, [roomView?.room.status, roomView?.winner?._id]);
+
+  useEffect(() => {
     if (!roomStartTitle || !roomTargetTitle) {
       return;
     }
 
-    setStartQuery(roomStartTitle);
-    setTargetQuery(roomTargetTitle);
-  }, [roomStartTitle, roomTargetTitle]);
+    if (!roomStartSlug || !roomTargetSlug || !roomStartTitle || !roomTargetTitle) {
+      return;
+    }
+
+    setStartArticle({
+      slug: roomStartSlug,
+      title: roomStartTitle,
+    });
+    setTargetArticle({
+      slug: roomTargetSlug,
+      title: roomTargetTitle,
+    });
+  }, [roomStartSlug, roomStartTitle, roomTargetSlug, roomTargetTitle]);
 
   useEffect(() => {
     if (roomView?.room.status !== "countdown" || !roomView.room.countdownStartedAt) {
@@ -300,8 +321,8 @@ export function RaceRoomScreen({ code }: { code: string }) {
                 onSubmit={(event) => {
                   event.preventDefault();
 
-                  if (!playerToken || !startQuery.trim() || !targetQuery.trim()) {
-                    setError("Set both the initial and final article before saving.");
+                  if (!playerToken || !startArticle || !targetArticle) {
+                    setError("Choose both the initial and final article from the search results.");
                     return;
                   }
 
@@ -311,8 +332,8 @@ export function RaceRoomScreen({ code }: { code: string }) {
                   void updateRoomSetup({
                     code: normalizedCode,
                     playerToken,
-                    startQuery: startQuery.trim(),
-                    targetQuery: targetQuery.trim(),
+                    startArticle,
+                    targetArticle,
                   })
                     .catch((cause) => {
                       setError(cause instanceof Error ? cause.message : "Could not update the room setup.");
@@ -322,32 +343,24 @@ export function RaceRoomScreen({ code }: { code: string }) {
                     });
                 }}
               >
-                <label className="block text-xs font-bold uppercase tracking-[0.2em] text-[#475569]">
-                  Initial Article
-                  <input
-                    type="text"
-                    value={startQuery}
-                    onChange={(event) => setStartQuery(event.target.value)}
-                    placeholder="Lando Norris"
-                    className="bevel-inset mt-2 w-full bg-white px-3 py-2 text-sm normal-case outline-none"
-                  />
-                </label>
-                <label className="block text-xs font-bold uppercase tracking-[0.2em] text-[#475569]">
-                  Final Article
-                  <input
-                    type="text"
-                    value={targetQuery}
-                    onChange={(event) => setTargetQuery(event.target.value)}
-                    placeholder="Border Collie"
-                    className="bevel-inset mt-2 w-full bg-white px-3 py-2 text-sm normal-case outline-none"
-                  />
-                </label>
+                <RaceArticlePicker
+                  label="Initial Article"
+                  placeholder="Search for the opening article"
+                  selectedArticle={startArticle}
+                  onSelect={setStartArticle}
+                />
+                <RaceArticlePicker
+                  label="Final Article"
+                  placeholder="Search for the destination article"
+                  selectedArticle={targetArticle}
+                  onSelect={setTargetArticle}
+                />
                 <button
                   type="submit"
                   disabled={
                     setupState === "saving" ||
-                    !startQuery.trim() ||
-                    !targetQuery.trim()
+                    !startArticle ||
+                    !targetArticle
                   }
                   className="bevel bg-panel px-4 py-2 font-bold disabled:text-[#6b7280]"
                 >
@@ -458,7 +471,8 @@ export function RaceRoomScreen({ code }: { code: string }) {
 
         {roomView.room.status === "finished" && roomView.winner ? (
           <>
-            <div className="winner-overlay pointer-events-none">
+            {!isWinnerOverlayDismissed ? (
+              <div className="winner-overlay">
               <div className="winner-panel scanlines">
                 <div className="winner-marquee">
                   <div className="winner-marquee-track">
@@ -474,6 +488,15 @@ export function RaceRoomScreen({ code }: { code: string }) {
                 </div>
 
                 <div className="space-y-5 p-6 text-center md:p-8">
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsWinnerOverlayDismissed(true)}
+                      className="bevel bg-panel px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black"
+                    >
+                      Close
+                    </button>
+                  </div>
                   <div className="text-xs uppercase tracking-[0.45em] text-[#1d4b8f]">
                     Race Complete
                   </div>
@@ -512,7 +535,8 @@ export function RaceRoomScreen({ code }: { code: string }) {
                   </div>
                 </div>
               </div>
-            </div>
+              </div>
+            ) : null}
 
             <div className="mb-6 border-2 border-black bg-[#fff3b7] px-5 py-4">
               <div className="text-xs uppercase tracking-[0.3em] text-[#92400e]">Winner</div>

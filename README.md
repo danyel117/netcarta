@@ -4,6 +4,16 @@ Next.js app deployed on Cloudflare Workers via OpenNext, with Convex as the back
 
 Built for the Frontier Tech Week Hackathon in Miami, April 2026.
 
+## Screenshots
+
+### Home
+
+![Netcarta home screen](ui-reference/readme/home.png)
+
+### Race Lobby
+
+![Netcarta race lobby](ui-reference/readme/race-lobby.png)
+
 ## Architecture
 
 - Frontend: Next.js on Cloudflare Workers through OpenNext.

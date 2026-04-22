@@ -146,7 +146,7 @@ export function HomeScreen() {
                 Today&apos;s Challenge
               </div>
               <div className="mt-3 font-body text-4xl text-[#ffe59a]">
-                Cursor_(code_editor) to SpaceX
+                Cursor_(code_editor) to Artemis II
               </div>
               <p className="mt-3 text-sm leading-6 text-[#d1d5db]">
                 Judges join from phones, everyone starts together, and the first

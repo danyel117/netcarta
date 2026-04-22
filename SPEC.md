@@ -115,7 +115,7 @@ Not targeting: Jazz Tools (would require replacing Convex; not worth the swap).
 
 1. **Splash (5s)** — orchestral sting, Netcarta logo, "Online Edition."
 2. **Home hub (5s)** — four chunky buttons: Articles, Race, Atlas (greyed out), MindMaze (greyed out). Click Race.
-3. **Challenge intro (15s)** — "Today's race: Cursor_(code_editor) → SpaceX." Show join URL + QR on screen. Invite judges to join from phones.
+3. **Challenge intro (15s)** — "Today's race: Cursor_(code_editor) → Artemis II." Show join URL + QR on screen. Invite judges to join from phones.
 4. **Live race (60s)** — two players on stage, judges spectating. Clicks + timer update live for everyone. Winner arrives first.
 5. **Post-race screen (20s)** — both paths side-by-side, "The Scenic Route" callout on the loser's path. Reveal time and click count.
 6. **(Optional) Mux recap (15s)** — AI-narrated video of the winning path. Skip cleanly if not built.
@@ -198,7 +198,7 @@ Recommended library: **98.css** or **XP.css** from jdan on GitHub. Near-zero eff
 2. **The demo is inherently dramatic.** Two people racing on stage beats any feature tour.
 3. **The realtime sync isn't decorative — it's the product.** Convex judges will feel it.
 4. **The theme is nailed.** Skeuomorphism + chunky buttons + splash sting = instant nostalgia for anyone over 30.
-5. **It's shareable after the event.** "I got Cursor_(code_editor) → SpaceX in 6 clicks" is a tweet.
+5. **It's shareable after the event.** "I got Cursor_(code_editor) → Artemis II in 6 clicks" is a tweet.
 
 ---
 

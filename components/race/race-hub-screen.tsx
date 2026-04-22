@@ -29,8 +29,8 @@ export function RaceHubScreen() {
     title: "Cursor_(code_editor)",
   });
   const [targetArticle, setTargetArticle] = useState<ArticlePreview | null>({
-    slug: "SpaceX",
-    title: "SpaceX",
+    slug: "Artemis_II",
+    title: "Artemis II",
   });
   const [joinCode, setJoinCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);

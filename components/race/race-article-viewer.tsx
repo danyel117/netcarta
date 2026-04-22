@@ -169,14 +169,17 @@ export function RaceArticleViewer({
   const [fullArticle, setFullArticle] = useState<FullArticlePayload | null>(null);
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState<string | null>(null);
+  const [activeSuggestionPanelId, setActiveSuggestionPanelId] = useState<string | null>(null);
   const [localCursor, setLocalCursor] = useState({ x: 0.5, y: 0.12 });
   const activeSlugRef = useRef(slug);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const activeAnnouncementTimeoutRef = useRef<number | null>(null);
   const activePresenceTimeoutRef = useRef<number | null>(null);
+  const activeSuggestionPanelTimeoutRef = useRef<number | null>(null);
   const lastPresenceSentAtRef = useRef(0);
   const seenSuggestionIdsRef = useRef<Set<string>>(new Set());
   const activeSuggestionTimeoutsRef = useRef<number[]>([]);
+  const latestSuggestion = mode === "player" ? recentSuggestions?.[0] ?? null : null;
   const latestPresenceRef = useRef({
     currentArticleSlug: slug,
     followingParticipantId: followingParticipantId ?? undefined,
@@ -247,6 +250,7 @@ export function RaceArticleViewer({
     setFullStatus("idle");
     setHoveredStatus(null);
     setAnnouncement(null);
+    setActiveSuggestionPanelId(null);
     scrollViewportRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [slug]);
 
@@ -275,9 +279,31 @@ export function RaceArticleViewer({
         window.clearTimeout(activePresenceTimeoutRef.current);
       }
 
+      if (activeSuggestionPanelTimeoutRef.current !== null) {
+        window.clearTimeout(activeSuggestionPanelTimeoutRef.current);
+      }
+
       clearSuggestionTimeouts();
     };
   }, [clearSuggestionTimeouts]);
+
+  useEffect(() => {
+    if (mode !== "player" || !latestSuggestion) {
+      setActiveSuggestionPanelId(null);
+      return;
+    }
+
+    setActiveSuggestionPanelId(latestSuggestion._id);
+
+    if (activeSuggestionPanelTimeoutRef.current !== null) {
+      window.clearTimeout(activeSuggestionPanelTimeoutRef.current);
+    }
+
+    activeSuggestionPanelTimeoutRef.current = window.setTimeout(() => {
+      setActiveSuggestionPanelId((current) => (current === latestSuggestion._id ? null : current));
+      activeSuggestionPanelTimeoutRef.current = null;
+    }, SUGGESTION_FLASH_MS);
+  }, [latestSuggestion, mode]);
 
   useEffect(() => {
     if (cached !== null || summaryStatus === "loading" || summaryStatus === "error") {
@@ -500,8 +526,11 @@ export function RaceArticleViewer({
 
   const title = (fullArticle?.title ?? cached?.title ?? slug).replaceAll("_", " ");
   const isFullEntryPending = Boolean(cached && !fullArticle && fullStatus !== "error");
+  const latestSuggestionTheme = latestSuggestion
+    ? getCursorTheme(latestSuggestion.fromParticipantId, "spectator")
+    : null;
   const statusMessage = useMemo(() => {
-    if (announcement) {
+    if (mode === "spectator" && announcement) {
       return announcement;
     }
 
@@ -588,8 +617,26 @@ export function RaceArticleViewer({
             <div className="text-xs uppercase tracking-[0.42em] text-[#1d4b8f]">Current Article</div>
             <h2 className="font-body text-5xl text-[#111]">{title}</h2>
           </div>
-          <div className="mt-4 inline-flex min-h-12 items-center bevel-inset bg-white px-4 py-2 text-sm leading-5">
-            {statusMessage}
+          <div className="race-article-header-panels mt-4">
+            <div className="inline-flex min-h-12 items-center bevel-inset bg-white px-4 py-2 text-sm leading-5">
+              {statusMessage}
+            </div>
+            {latestSuggestion && latestSuggestionTheme ? (
+              <div
+                className={`race-suggestion-panel bevel-inset ${activeSuggestionPanelId === latestSuggestion._id ? "is-active" : ""}`}
+                style={
+                  {
+                    ["--suggestion-panel-accent" as string]: latestSuggestionTheme.fill,
+                    ["--suggestion-panel-ink" as string]: latestSuggestionTheme.border,
+                    ["--suggestion-panel-bg" as string]: latestSuggestionTheme.labelBackground,
+                  } as CSSProperties
+                }
+              >
+                <div className="race-suggestion-kicker">Spectator Suggestion</div>
+                <div className="race-suggestion-title">{latestSuggestion.articleTitle}</div>
+                <div className="race-suggestion-meta">{latestSuggestion.fromDisplayName} suggests this route</div>
+              </div>
+            ) : null}
           </div>
         </div>
 

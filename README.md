@@ -4,6 +4,12 @@ Next.js app deployed on Cloudflare Workers via OpenNext, with Convex as the back
 
 Built for the Frontier Tech Week Hackathon in Miami, April 2026.
 
+Inspired by the event prompt, "We Literally Have No Idea How To Build Like This Anymore," the project leans into early-web and Y2K aesthetics while using modern tools underneath.
+
+Event page: [Frontier Tech Week Y2K Hackathon](https://luma.com/zm9f82vj?tk=XjHNtY)
+
+![Frontier Tech Week Y2K Hackathon invite](ui-reference/readme/frontier-tech-week-y2k-hackathon.png)
+
 ## Screenshots
 
 ### Home
